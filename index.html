@@ -12,9 +12,6 @@
         .stat-card:hover { transform: translateY(-3px); }
         .day-working { border-left: 4px solid #198754; }
         .day-dayoff { border-left: 4px solid #6c757d; }
-        .day-vacation { border-left: 4px solid #0dcaf0; }
-        .day-sick { border-left: 4px solid #ffc107; }
-        .day-mixed { border-left: 4px solid #6f42c1; }
         .navbar-brand { font-weight: bold; }
         .group-row { cursor: pointer; }
         .details-row td { padding: 0; }
@@ -27,7 +24,7 @@
             <span class="navbar-brand">💰 Дневник зарплаты</span>
             <div class="navbar-nav ms-auto">
                 <button class="btn btn-outline-light me-2" data-bs-toggle="modal" data-bs-target="#addPresetModal">⚡ Категории</button>
-                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addDayModal">+ Добавить день</button>
+                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addDayModal">+ Добавить траты</button>
             </div>
         </div>
     </nav>
@@ -49,7 +46,7 @@
                         <th>Тип дня</th>
                         <th>Доход</th>
                         <th>Расход</th>
-                        <th></th> <!-- Действия (пустая ячейка) -->
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody id="daysTableBody">
@@ -58,16 +55,16 @@
             </table>
         </div>
         <div id="noDaysMessage" class="text-center text-muted mt-3" style="display: none;">
-            Нет записей. Добавьте первый рабочий день!
+            Нет записей. Добавьте первую трату!
         </div>
     </div>
 
-    <!-- ===== МОДАЛЬНОЕ ОКНО: Добавление/редактирование дня ===== -->
+    <!-- ===== МОДАЛЬНОЕ ОКНО: Добавление/редактирование трат ===== -->
     <div class="modal fade" id="addDayModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="dayModalTitle">Добавить день</h5>
+                    <h5 class="modal-title" id="dayModalTitle">Добавить траты</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -82,15 +79,12 @@
                             <select class="form-select" id="dayType">
                                 <option value="working">Рабочий</option>
                                 <option value="dayoff">Выходной</option>
-                                <option value="vacation">Отпуск</option>
-                                <option value="sick">Больничный</option>
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Категория (необязательно)</label>
+                            <label class="form-label">Категория</label>
                             <select class="form-select" id="presetSelect">
-                                <option value="">-- Без категории --</option>
-                                <!-- JS добавит -->
+                                <!-- JS заполнит категориями, пустой вариант не предусмотрен -->
                             </select>
                         </div>
                         <div class="mb-3">
@@ -111,7 +105,7 @@
         </div>
     </div>
 
-    <!-- ===== МОДАЛЬНОЕ ОКНО: Категории ===== -->
+    <!-- ===== МОДАЛЬНОЕ ОКНО: Управление категориями ===== -->
     <div class="modal fade" id="addPresetModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -151,13 +145,16 @@
         let presets = [];       // { id, name }
         const STORAGE_DAYS = 'salary_diary_days';
         const STORAGE_PRESETS = 'salary_diary_presets';
+        const DEFAULT_CATEGORY = 'Еда и прочее';
 
         // ====== ИНИЦИАЛИЗАЦИЯ ======
         document.addEventListener('DOMContentLoaded', function() {
             loadData();
+            ensureDefaultCategory();
             renderAll();
             attachEventListeners();
             document.getElementById('dayDate').value = new Date().toISOString().split('T')[0];
+            checkDateType(); // проверка начальной даты
         });
 
         function loadData() {
@@ -170,6 +167,14 @@
         function saveData() {
             localStorage.setItem(STORAGE_DAYS, JSON.stringify(days));
             localStorage.setItem(STORAGE_PRESETS, JSON.stringify(presets));
+        }
+
+        // Убедимся, что базовая категория существует
+        function ensureDefaultCategory() {
+            if (!presets.some(p => p.name === DEFAULT_CATEGORY)) {
+                presets.push({ id: generateId(), name: DEFAULT_CATEGORY });
+                saveData();
+            }
         }
 
         function renderAll() {
@@ -210,11 +215,10 @@
                 const totalIncome = group.reduce((sum, d) => sum + (Number(d.income) || 0), 0);
                 const totalExpense = group.reduce((sum, d) => sum + (Number(d.expense) || 0), 0);
 
-                // Определяем тип дня для строки-агрегата
-                const types = new Set(group.map(d => d.type));
-                const displayType = types.size === 1 ? group[0].type : 'mixed';
+                // Тип дня у всех записей в группе теперь одинаков
+                const displayType = group[0].type;
 
-                // Создаём строку-агрегат (5 ячеек)
+                // Строка-агрегат
                 const groupRow = document.createElement('tr');
                 groupRow.className = `group-row day-${displayType}`;
                 groupRow.innerHTML = `
@@ -239,7 +243,6 @@
                                         <th>Категория</th>
                                         <th>Доход</th>
                                         <th>Расход</th>
-                                        <th>Тип</th>
                                         <th></th>
                                     </tr>
                                 </thead>
@@ -248,10 +251,9 @@
                                         const realIndex = days.indexOf(day);
                                         return `
                                             <tr>
-                                                <td>${day.category || '—'}</td>
+                                                <td>${day.category}</td>
                                                 <td class="text-success">${day.income.toFixed(2)} ₽</td>
                                                 <td class="text-danger">${day.expense.toFixed(2)} ₽</td>
-                                                <td>${getDayTypeName(day.type)}</td>
                                                 <td>
                                                     <button class="btn btn-sm btn-outline-secondary edit-day-btn" data-index="${realIndex}">✏️</button>
                                                     <button class="btn btn-sm btn-outline-danger delete-day-btn" data-index="${realIndex}">🗑️</button>
@@ -281,7 +283,7 @@
             });
         }
 
-        // ====== СТАТИСТИКА (без изменений, только раскладка) ======
+        // ====== СТАТИСТИКА (рабочие дни по уникальным датам) ======
         function renderStats() {
             const container = document.getElementById('statsContainer');
             if (days.length === 0) {
@@ -290,23 +292,30 @@
             }
 
             let totalIncome = 0, totalExpense = 0;
-            let workingDays = [], allDays = [];
 
+            // Собираем уникальные даты и отмечаем, какие из них рабочие
+            const dateMap = new Map(); // date => Set(types)
             days.forEach(day => {
                 totalIncome += Number(day.income) || 0;
                 totalExpense += Number(day.expense) || 0;
-                allDays.push(day);
-                if (day.type === 'working') workingDays.push(day);
+                if (!dateMap.has(day.date)) {
+                    dateMap.set(day.date, new Set());
+                }
+                dateMap.get(day.date).add(day.type);
             });
 
-            const daysCount = allDays.length;
-            const workingDaysCount = workingDays.length;
-            const avgIncomeAll = totalIncome / daysCount;
-            const avgExpenseAll = totalExpense / daysCount;
-            const totalWorkingIncome = workingDays.reduce((s, d) => s + (Number(d.income) || 0), 0);
-            const totalWorkingExpense = workingDays.reduce((s, d) => s + (Number(d.expense) || 0), 0);
-            const avgIncomeWorking = workingDaysCount > 0 ? totalWorkingIncome / workingDaysCount : 0;
-            const avgExpenseWorking = workingDaysCount > 0 ? totalWorkingExpense / workingDaysCount : 0;
+            const allDatesCount = dateMap.size;
+            const workingDatesCount = Array.from(dateMap.values()).filter(types => types.has('working')).length;
+
+            // Суммы по рабочим дням (все операции с типом working, т.к. смешанных нет)
+            const workingDaysOps = days.filter(d => d.type === 'working');
+            const totalWorkingIncome = workingDaysOps.reduce((s, d) => s + (Number(d.income) || 0), 0);
+            const totalWorkingExpense = workingDaysOps.reduce((s, d) => s + (Number(d.expense) || 0), 0);
+
+            const avgIncomeAll = totalIncome / allDatesCount;
+            const avgExpenseAll = totalExpense / allDatesCount;
+            const avgIncomeWorking = workingDatesCount > 0 ? totalWorkingIncome / workingDatesCount : 0;
+            const avgExpenseWorking = workingDatesCount > 0 ? totalWorkingExpense / workingDatesCount : 0;
             const netBalance = totalIncome - totalExpense;
 
             container.innerHTML = `
@@ -322,7 +331,7 @@
                 <div class="row g-3">
                     <div class="col-md-4"><div class="card stat-card bg-success text-white"><div class="card-body"><h6>Средний доход / раб. день</h6><p class="fs-5 fw-bold">${avgIncomeWorking.toFixed(2)} ₽</p></div></div></div>
                     <div class="col-md-4"><div class="card stat-card bg-danger text-white"><div class="card-body"><h6>Средний расход / раб. день</h6><p class="fs-5 fw-bold">${avgExpenseWorking.toFixed(2)} ₽</p></div></div></div>
-                    <div class="col-md-4"><div class="card stat-card bg-secondary text-white"><div class="card-body"><h6>Рабочих дней</h6><p class="fs-5 fw-bold">${workingDaysCount} из ${daysCount}</p></div></div></div>
+                    <div class="col-md-4"><div class="card stat-card bg-secondary text-white"><div class="card-body"><h6>Рабочих дней</h6><p class="fs-5 fw-bold">${workingDatesCount} из ${allDatesCount}</p></div></div></div>
                 </div>
             `;
         }
@@ -349,13 +358,21 @@
 
         function renderPresetSelect() {
             const select = document.getElementById('presetSelect');
-            select.innerHTML = '<option value="">-- Без категории --</option>';
+            select.innerHTML = '';
+            // Всегда есть хотя бы одна категория (по умолчанию)
             presets.forEach(p => {
                 const opt = document.createElement('option');
                 opt.value = p.id;
                 opt.textContent = p.name;
                 select.appendChild(opt);
             });
+            // Установим категорию по умолчанию, если есть
+            const defaultPreset = presets.find(p => p.name === DEFAULT_CATEGORY);
+            if (defaultPreset) {
+                select.value = defaultPreset.id;
+            } else if (presets.length > 0) {
+                select.value = presets[0].id;
+            }
         }
 
         // ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ======
@@ -373,12 +390,34 @@
         }
 
         function getDayTypeName(type) {
-            const map = { working: 'Рабочий', dayoff: 'Выходной', vacation: 'Отпуск', sick: 'Больничный', mixed: 'Смешанный' };
-            return map[type] || type;
+            return type === 'working' ? 'Рабочий' : 'Выходной';
         }
 
         function generateId() {
             return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+        }
+
+        // Проверка и блокировка типа дня для выбранной даты
+        function checkDateType(excludeIndex = -1) {
+            const dateInput = document.getElementById('dayDate').value;
+            if (!dateInput) return;
+            const dateStr = formatDate(new Date(dateInput + 'T00:00:00'));
+            const typeSelect = document.getElementById('dayType');
+
+            // Есть ли другие записи на эту дату, кроме исключаемой
+            const otherRecords = days.filter((day, idx) => day.date === dateStr && idx !== excludeIndex);
+            if (otherRecords.length > 0) {
+                // Блокируем и устанавливаем тип, как у первой найденной записи
+                typeSelect.disabled = true;
+                typeSelect.value = otherRecords[0].type;
+            } else {
+                // Разблокируем
+                typeSelect.disabled = false;
+                // Оставляем текущее значение (или рабочее по умолчанию)
+                if (typeSelect.value === '') {
+                    typeSelect.value = 'working';
+                }
+            }
         }
 
         // ====== ОБРАБОТЧИКИ СОБЫТИЙ ======
@@ -388,7 +427,13 @@
             document.getElementById('savePresetBtn').addEventListener('click', savePreset);
             document.getElementById('cancelPresetEditBtn').addEventListener('click', hidePresetForm);
 
-            // Делегирование кликов на таблице дней
+            // При изменении даты проверяем блокировку типа дня
+            document.getElementById('dayDate').addEventListener('change', function() {
+                const editIndex = parseInt(document.getElementById('editDayIndex').value);
+                checkDateType(editIndex >= 0 ? editIndex : -1);
+            });
+
+            // Делегирование кликов в таблице дней
             document.getElementById('daysTableBody').addEventListener('click', function(e) {
                 const editBtn = e.target.closest('.edit-day-btn');
                 const deleteBtn = e.target.closest('.delete-day-btn');
@@ -402,7 +447,7 @@
                 }
             });
 
-            // Делегирование кликов на списке пресетов
+            // Делегирование кликов в списке категорий
             document.getElementById('presetsList').addEventListener('click', function(e) {
                 const editBtn = e.target.closest('.edit-preset-btn');
                 const deleteBtn = e.target.closest('.delete-preset-btn');
@@ -417,7 +462,7 @@
             });
         }
 
-        // ====== ЛОГИКА ДНЕЙ ======
+        // ====== ЛОГИКА ТРАТ ======
         function saveDay() {
             const dateInput = document.getElementById('dayDate').value;
             if (!dateInput) {
@@ -425,18 +470,24 @@
                 return;
             }
             const date = formatDate(new Date(dateInput + 'T00:00:00'));
-            const type = document.getElementById('dayType').value;
+            const typeSelect = document.getElementById('dayType');
+            const type = typeSelect.value;
             const presetId = document.getElementById('presetSelect').value;
-            let category = '';
-            if (presetId) {
-                const preset = presets.find(p => p.id === presetId);
-                category = preset ? preset.name : '';
-            }
+            const categoryPreset = presets.find(p => p.id === presetId);
+            const category = categoryPreset ? categoryPreset.name : '';
             const income = parseFloat(document.getElementById('dayIncome').value) || 0;
             const expense = parseFloat(document.getElementById('dayExpense').value) || 0;
             const editIndex = parseInt(document.getElementById('editDayIndex').value);
 
-            const dayData = { date, type, category, income, expense };
+            // Дополнительная проверка: если для этой даты уже закреплён другой тип, подменяем
+            if (editIndex < 0) {
+                const existing = days.find(d => d.date === date);
+                if (existing) {
+                    typeSelect.value = existing.type;
+                }
+            }
+
+            const dayData = { date, type: typeSelect.value, category, income, expense };
 
             if (editIndex >= 0 && editIndex < days.length) {
                 days[editIndex] = dayData;
@@ -457,15 +508,17 @@
             document.getElementById('dayDate').value = parseDate(day.date).toISOString().split('T')[0];
             document.getElementById('dayType').value = day.type;
             const preset = presets.find(p => p.name === day.category);
-            document.getElementById('presetSelect').value = preset ? preset.id : '';
+            document.getElementById('presetSelect').value = preset ? preset.id : (presets.length > 0 ? presets[0].id : '');
             document.getElementById('dayIncome').value = day.income;
             document.getElementById('dayExpense').value = day.expense;
-            document.getElementById('dayModalTitle').textContent = 'Редактировать день';
+            document.getElementById('dayModalTitle').textContent = 'Редактировать трату';
+            // Проверим блокировку типа дня
+            checkDateType(index);
             new bootstrap.Modal(document.getElementById('addDayModal')).show();
         }
 
         function deleteDay(index) {
-            if (confirm('Удалить эту запись?')) {
+            if (confirm('Удалить эту трату?')) {
                 days.splice(index, 1);
                 saveData();
                 renderAll();
@@ -476,8 +529,10 @@
             document.getElementById('editDayIndex').value = -1;
             document.getElementById('dayForm').reset();
             document.getElementById('dayDate').value = new Date().toISOString().split('T')[0];
-            document.getElementById('presetSelect').value = '';
-            document.getElementById('dayModalTitle').textContent = 'Добавить день';
+            // Категория по умолчанию
+            renderPresetSelect(); // обновит select и выставит нужную категорию
+            document.getElementById('dayModalTitle').textContent = 'Добавить траты';
+            checkDateType(-1);
         }
 
         // ====== ЛОГИКА КАТЕГОРИЙ ======
@@ -505,7 +560,6 @@
                 if (preset) {
                     const oldName = preset.name;
                     preset.name = name;
-                    // Обновить категорию во всех днях
                     days.forEach(day => {
                         if (day.category === oldName) day.category = name;
                     });
@@ -528,7 +582,7 @@
         }
 
         function deletePreset(id) {
-            if (confirm('Удалить категорию?')) {
+            if (confirm('Удалить категорию? Все траты с ней останутся, но категория исчезнет из списка.')) {
                 presets = presets.filter(p => p.id !== id);
                 saveData();
                 renderAll();
@@ -536,7 +590,7 @@
             }
         }
 
-        // Сброс формы при открытии модального окна добавления дня
+        // При открытии модального окна добавления трат – сброс формы, если не редактирование
         document.getElementById('addDayModal').addEventListener('show.bs.modal', function(event) {
             const editIndex = document.getElementById('editDayIndex').value;
             if (editIndex === '-1' || (event.relatedTarget && event.relatedTarget.getAttribute('data-bs-target') === '#addDayModal')) {
