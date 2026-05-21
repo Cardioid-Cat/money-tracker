@@ -4,9 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Дневник зарплаты</title>
-    <!-- Bootstrap 5 CSS (бесплатный CDN) -->
+    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Немного своих стилей для удобства -->
     <style>
         body { background-color: #f8f9fa; }
         .stat-card { border-radius: 15px; transition: transform 0.2s; }
@@ -24,7 +23,7 @@
         <div class="container">
             <span class="navbar-brand">💰 Дневник зарплаты</span>
             <div class="navbar-nav ms-auto">
-                <button class="btn btn-outline-light me-2" data-bs-toggle="modal" data-bs-target="#addPresetModal">⚡ Пресеты</button>
+                <button class="btn btn-outline-light me-2" data-bs-toggle="modal" data-bs-target="#addPresetModal">⚡ Категории</button>
                 <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addDayModal">+ Добавить день</button>
             </div>
         </div>
@@ -33,18 +32,19 @@
     <div class="container">
         <!-- Статистика (дашборд) -->
         <h3 class="mb-3">📊 Статистика</h3>
-        <div class="row g-3 mb-4" id="statsContainer">
-            <!-- Здесь JS вставит карточки статистики -->
+        <div id="statsContainer">
+            <!-- Здесь JS вставит сгруппированные карточки -->
         </div>
 
         <!-- Журнал дней -->
-        <h3 class="mb-3">📅 Журнал дней</h3>
+        <h3 class="mb-3 mt-4">📅 Журнал дней</h3>
         <div class="table-responsive">
             <table class="table table-hover align-middle bg-white shadow-sm rounded">
                 <thead class="table-dark">
                     <tr>
                         <th>Дата</th>
                         <th>Тип дня</th>
+                        <th>Категория</th>
                         <th>Доход</th>
                         <th>Расход</th>
                         <th>Действия</th>
@@ -70,11 +70,10 @@
                 </div>
                 <div class="modal-body">
                     <form id="dayForm">
-                        <input type="hidden" id="editDayIndex" value="-1"> <!-- -1 значит новый день, иначе индекс для редактирования -->
+                        <input type="hidden" id="editDayIndex" value="-1">
                         <div class="mb-3">
                             <label class="form-label">Дата (дд.мм.гггг)</label>
                             <input type="date" class="form-control" id="dayDate" required>
-                            <small class="text-muted">Выберите дату в календаре</small>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Тип дня</label>
@@ -86,9 +85,9 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Применить пресет (необязательно)</label>
+                            <label class="form-label">Категория (необязательно)</label>
                             <select class="form-select" id="presetSelect">
-                                <option value="">-- Не использовать --</option>
+                                <option value="">-- Без категории --</option>
                                 <!-- JS добавит варианты -->
                             </select>
                         </div>
@@ -110,81 +109,56 @@
         </div>
     </div>
 
-    <!-- ===== МОДАЛЬНОЕ ОКНО: Управление пресетами ===== -->
+    <!-- ===== МОДАЛЬНОЕ ОКНО: Управление категориями ===== -->
     <div class="modal fade" id="addPresetModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">⚡ Пресеты доходов/расходов</h5>
+                    <h5 class="modal-title">⚡ Категории</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <button class="btn btn-success btn-sm" id="showAddPresetFormBtn">+ Создать новый пресет</button>
+                        <button class="btn btn-success btn-sm" id="showAddPresetFormBtn">+ Создать категорию</button>
                     </div>
                     <div id="addPresetFormContainer" style="display: none;" class="border p-3 mb-3 rounded bg-light">
-                        <h6>Новый пресет</h6>
+                        <h6>Новая категория</h6>
                         <input type="hidden" id="editPresetId" value="">
                         <div class="mb-2">
-                            <input type="text" class="form-control" id="presetName" placeholder="Название (например, Обычная смена)">
+                            <input type="text" class="form-control" id="presetName" placeholder="Название (например, Топливо)">
                         </div>
-                        <div class="mb-2">
-                            <select class="form-select" id="presetType">
-                                <option value="income">Доход</option>
-                                <option value="expense">Расход</option>
-                                <option value="both">Доход и расход</option>
-                            </select>
-                        </div>
-                        <div class="mb-2" id="presetIncomeGroup">
-                            <label class="form-label">Доход по умолчанию (₽)</label>
-                            <input type="number" class="form-control" id="presetIncome" step="0.01" min="0" value="0">
-                        </div>
-                        <div class="mb-2" id="presetExpenseGroup">
-                            <label class="form-label">Расход по умолчанию (₽)</label>
-                            <input type="number" class="form-control" id="presetExpense" step="0.01" min="0" value="0">
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label">Тип дня по умолчанию</label>
-                            <select class="form-select" id="presetDayType">
-                                <option value="working">Рабочий</option>
-                                <option value="dayoff">Выходной</option>
-                                <option value="vacation">Отпуск</option>
-                                <option value="sick">Больничный</option>
-                            </select>
-                        </div>
-                        <button class="btn btn-primary btn-sm" id="savePresetBtn">Сохранить пресет</button>
+                        <button class="btn btn-primary btn-sm" id="savePresetBtn">Сохранить</button>
                         <button class="btn btn-secondary btn-sm" id="cancelPresetEditBtn">Отмена</button>
                     </div>
                     <hr>
-                    <h6>Сохранённые пресеты</h6>
+                    <h6>Сохранённые категории</h6>
                     <div class="list-group" id="presetsList">
-                        <!-- Список пресетов -->
+                        <!-- Список категорий -->
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Bootstrap JS (бесплатный CDN) -->
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Основная логика приложения -->
+    <!-- Основная логика -->
     <script>
-        // ======  ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И ХРАНИЛИЩЕ  ======
-        let days = [];           // Массив записей дней: { date, type, income, expense }
-        let presets = [];       // Массив пресетов: { id, name, type, income, expense, dayType }
+        // ====== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ======
+        let days = [];           // { date, type, category, income, expense }
+        let presets = [];       // { id, name }  – просто категории
         const STORAGE_DAYS = 'salary_diary_days';
         const STORAGE_PRESETS = 'salary_diary_presets';
 
-        // ======  ИНИЦИАЛИЗАЦИЯ ПРИ ЗАГРУЗКЕ СТРАНИЦЫ  ======
+        // ====== ИНИЦИАЛИЗАЦИЯ ======
         document.addEventListener('DOMContentLoaded', function() {
             loadData();
             renderAll();
             attachEventListeners();
-            // Установить сегодняшнюю дату в поле даты по умолчанию
             document.getElementById('dayDate').value = new Date().toISOString().split('T')[0];
         });
 
-        // ======  РАБОТА С ДАННЫМИ (LocalStorage)  ======
+        // ====== РАБОТА С ДАННЫМИ ======
         function loadData() {
             const savedDays = localStorage.getItem(STORAGE_DAYS);
             const savedPresets = localStorage.getItem(STORAGE_PRESETS);
@@ -197,7 +171,7 @@
             localStorage.setItem(STORAGE_PRESETS, JSON.stringify(presets));
         }
 
-        // ======  ОТРИСОВКА ВСЕГО ИНТЕРФЕЙСА  ======
+        // ====== ОТРИСОВКА ВСЕГО ======
         function renderAll() {
             renderDaysTable();
             renderStats();
@@ -215,21 +189,19 @@
                 return;
             }
             noMsg.style.display = 'none';
-            // Сортировка по дате (от новых к старым)
             const sortedDays = [...days].sort((a, b) => {
                 const dateA = parseDate(a.date);
                 const dateB = parseDate(b.date);
                 return dateB - dateA;
             });
-            sortedDays.forEach((day, sortedIndex) => {
-                // Поскольку индекс в общем массиве может отличаться, найдём реальный индекс
+            sortedDays.forEach(day => {
                 const realIndex = days.indexOf(day);
                 const row = document.createElement('tr');
-                // Класс для цветовой полосы слева
                 row.className = `day-${day.type}`;
                 row.innerHTML = `
                     <td>${day.date}</td>
                     <td>${getDayTypeName(day.type)}</td>
+                    <td>${day.category || '—'}</td>
                     <td class="text-success fw-bold">${day.income.toFixed(2)} ₽</td>
                     <td class="text-danger fw-bold">${day.expense.toFixed(2)} ₽</td>
                     <td>
@@ -241,15 +213,14 @@
             });
         }
 
-        // ----- Статистика (все расчёты здесь) -----
+        // ----- Статистика (сгруппированные блоки) -----
         function renderStats() {
             const container = document.getElementById('statsContainer');
             if (days.length === 0) {
-                container.innerHTML = `<div class="col-12 text-muted">Нет данных для статистики</div>`;
+                container.innerHTML = `<div class="text-muted">Нет данных для статистики</div>`;
                 return;
             }
 
-            // Общие суммы
             let totalIncome = 0, totalExpense = 0;
             let workingDays = [], allDays = [];
 
@@ -266,60 +237,105 @@
 
             const daysCount = allDays.length;
             const workingDaysCount = workingDays.length;
-
-            // Средние за день (все дни)
             const avgIncomeAll = daysCount > 0 ? totalIncome / daysCount : 0;
             const avgExpenseAll = daysCount > 0 ? totalExpense / daysCount : 0;
-
-            // Средние за рабочий день
             const totalWorkingIncome = workingDays.reduce((sum, d) => sum + (Number(d.income) || 0), 0);
             const totalWorkingExpense = workingDays.reduce((sum, d) => sum + (Number(d.expense) || 0), 0);
             const avgIncomeWorking = workingDaysCount > 0 ? totalWorkingIncome / workingDaysCount : 0;
             const avgExpenseWorking = workingDaysCount > 0 ? totalWorkingExpense / workingDaysCount : 0;
-
             const netBalance = totalIncome - totalExpense;
 
-            // Собираем карточки
-            const cards = [
-                { title: 'Общий доход', value: `${totalIncome.toFixed(2)} ₽`, color: 'bg-success text-white' },
-                { title: 'Общий расход', value: `${totalExpense.toFixed(2)} ₽`, color: 'bg-danger text-white' },
-                { title: 'Чистый остаток', value: `${netBalance.toFixed(2)} ₽`, color: netBalance >= 0 ? 'bg-primary text-white' : 'bg-warning text-dark' },
-                { title: 'Средний доход / день', value: `${avgIncomeAll.toFixed(2)} ₽`, color: 'bg-info text-dark' },
-                { title: 'Средний расход / день', value: `${avgExpenseAll.toFixed(2)} ₽`, color: 'bg-info text-dark' },
-                { title: 'Средний доход / раб. день', value: `${avgIncomeWorking.toFixed(2)} ₽`, color: 'bg-success text-white' },
-                { title: 'Средний расход / раб. день', value: `${avgExpenseWorking.toFixed(2)} ₽`, color: 'bg-danger text-white' },
-                { title: 'Всего рабочих дней', value: `${workingDaysCount} из ${daysCount}`, color: 'bg-secondary text-white' }
-            ];
-
-            container.innerHTML = cards.map(card => `
-                <div class="col-sm-6 col-md-4 col-lg-3">
-                    <div class="card stat-card ${card.color} shadow-sm">
-                        <div class="card-body">
-                            <h6 class="card-title">${card.title}</h6>
-                            <p class="card-text fs-5 fw-bold">${card.value}</p>
+            // Формируем блоки
+            container.innerHTML = `
+                <!-- Блок 1: Общие суммы -->
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <div class="card stat-card bg-success text-white shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title">Общий доход</h6>
+                                <p class="card-text fs-5 fw-bold">${totalIncome.toFixed(2)} ₽</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card stat-card bg-danger text-white shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title">Общий расход</h6>
+                                <p class="card-text fs-5 fw-bold">${totalExpense.toFixed(2)} ₽</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card stat-card ${netBalance >= 0 ? 'bg-primary' : 'bg-warning'} text-white shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title">Чистый остаток</h6>
+                                <p class="card-text fs-5 fw-bold">${netBalance.toFixed(2)} ₽</p>
+                            </div>
                         </div>
                     </div>
                 </div>
-            `).join('');
+                <!-- Блок 2: Средние за день (все дни) -->
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <div class="card stat-card bg-info text-dark shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title">Средний доход / день</h6>
+                                <p class="card-text fs-5 fw-bold">${avgIncomeAll.toFixed(2)} ₽</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card stat-card bg-info text-dark shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title">Средний расход / день</h6>
+                                <p class="card-text fs-5 fw-bold">${avgExpenseAll.toFixed(2)} ₽</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Блок 3: Рабочие дни -->
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="card stat-card bg-success text-white shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title">Средний доход / раб. день</h6>
+                                <p class="card-text fs-5 fw-bold">${avgIncomeWorking.toFixed(2)} ₽</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card stat-card bg-danger text-white shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title">Средний расход / раб. день</h6>
+                                <p class="card-text fs-5 fw-bold">${avgExpenseWorking.toFixed(2)} ₽</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card stat-card bg-secondary text-white shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title">Рабочих дней</h6>
+                                <p class="card-text fs-5 fw-bold">${workingDaysCount} из ${daysCount}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
-        // ----- Список пресетов в модальном окне -----
+        // ----- Список категорий в модальном окне -----
         function renderPresetsList() {
             const list = document.getElementById('presetsList');
             list.innerHTML = '';
             if (presets.length === 0) {
-                list.innerHTML = '<div class="list-group-item text-muted">Пресетов пока нет</div>';
+                list.innerHTML = '<div class="list-group-item text-muted">Категорий пока нет</div>';
                 return;
             }
             presets.forEach(preset => {
                 const item = document.createElement('div');
                 item.className = 'list-group-item d-flex justify-content-between align-items-center';
-                let desc = `${preset.name} | Тип: ${getPresetTypeName(preset.type)}`;
-                if (preset.type === 'income' || preset.type === 'both') desc += ` | Доход: ${preset.income.toFixed(2)} ₽`;
-                if (preset.type === 'expense' || preset.type === 'both') desc += ` | Расход: ${preset.expense.toFixed(2)} ₽`;
-                desc += ` | День: ${getDayTypeName(preset.dayType)}`;
                 item.innerHTML = `
-                    <span>${desc}</span>
+                    <span>${preset.name}</span>
                     <span>
                         <button class="btn btn-sm btn-outline-secondary edit-preset-btn" data-id="${preset.id}">✏️</button>
                         <button class="btn btn-sm btn-outline-danger delete-preset-btn" data-id="${preset.id}">🗑️</button>
@@ -329,11 +345,10 @@
             });
         }
 
-        // ----- Выпадающий список пресетов в форме добавления дня -----
+        // ----- Выпадающий список категорий в форме дня -----
         function renderPresetSelect() {
             const select = document.getElementById('presetSelect');
-            // Очищаем все опции, кроме первой "Не использовать"
-            select.innerHTML = '<option value="">-- Не использовать --</option>';
+            select.innerHTML = '<option value="">-- Без категории --</option>';
             presets.forEach(preset => {
                 const option = document.createElement('option');
                 option.value = preset.id;
@@ -342,16 +357,14 @@
             });
         }
 
-        // ======  ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ  ======
+        // ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ======
         function parseDate(dateStr) {
-            // Из формата "dd.mm.yyyy" в объект Date
             const parts = dateStr.split('.');
             if (parts.length !== 3) return new Date(0);
             return new Date(parts[2], parts[1] - 1, parts[0]);
         }
 
         function formatDate(date) {
-            // Из объекта Date в строку "dd.mm.yyyy"
             const day = String(date.getDate()).padStart(2, '0');
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const year = date.getFullYear();
@@ -363,29 +376,21 @@
             return map[type] || type;
         }
 
-        function getPresetTypeName(type) {
-            const map = { income: 'Доход', expense: 'Расход', both: 'Доход и расход' };
-            return map[type] || type;
-        }
-
         function generateId() {
             return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
         }
 
-        // ======  ОБРАБОТЧИКИ СОБЫТИЙ (кнопки, формы)  ======
+        // ====== ОБРАБОТЧИКИ СОБЫТИЙ ======
         function attachEventListeners() {
-            // Сохранение дня (добавление или редактирование)
             document.getElementById('saveDayBtn').addEventListener('click', saveDay);
-
-            // Управление пресетами
             document.getElementById('showAddPresetFormBtn').addEventListener('click', showAddPresetForm);
             document.getElementById('savePresetBtn').addEventListener('click', savePreset);
             document.getElementById('cancelPresetEditBtn').addEventListener('click', hidePresetForm);
 
-            // При выборе пресета в форме дня — автозаполнение полей
-            document.getElementById('presetSelect').addEventListener('change', applyPresetToDayForm);
+            document.getElementById('presetSelect').addEventListener('change', function() {
+                // При выборе категории просто записываем её id, суммы не меняются
+            });
 
-            // Обработчики на таблицу дней (кнопки редактирования и удаления)
             document.getElementById('daysTableBody').addEventListener('click', function(e) {
                 if (e.target.classList.contains('delete-day-btn')) {
                     const index = e.target.getAttribute('data-index');
@@ -396,7 +401,6 @@
                 }
             });
 
-            // Обработчики на списке пресетов (кнопки редактирования и удаления)
             document.getElementById('presetsList').addEventListener('click', function(e) {
                 if (e.target.classList.contains('edit-preset-btn')) {
                     const id = e.target.getAttribute('data-id');
@@ -406,55 +410,53 @@
                     deletePreset(id);
                 }
             });
-
-            // При изменении типа пресета — показывать/прятать поля дохода/расхода
-            document.getElementById('presetType').addEventListener('change', togglePresetAmountFields);
         }
 
-        // ======  ЛОГИКА ДНЕЙ  ======
+        // ====== ЛОГИКА ДНЕЙ ======
         function saveDay() {
-            const dateInput = document.getElementById('dayDate').value; // в формате yyyy-mm-dd
+            const dateInput = document.getElementById('dayDate').value;
             if (!dateInput) {
                 alert('Пожалуйста, выберите дату!');
                 return;
             }
-            // Преобразуем в dd.mm.yyyy
-            const date = formatDate(new Date(dateInput + 'T00:00:00')); // избегаем сдвига часовых поясов
+            const date = formatDate(new Date(dateInput + 'T00:00:00'));
             const type = document.getElementById('dayType').value;
+            const presetId = document.getElementById('presetSelect').value;
+            let category = '';
+            if (presetId) {
+                const preset = presets.find(p => p.id === presetId);
+                category = preset ? preset.name : '';
+            }
             const income = parseFloat(document.getElementById('dayIncome').value) || 0;
             const expense = parseFloat(document.getElementById('dayExpense').value) || 0;
             const editIndex = parseInt(document.getElementById('editDayIndex').value);
 
-            const dayData = { date, type, income, expense };
+            const dayData = { date, type, category, income, expense };
 
             if (editIndex >= 0 && editIndex < days.length) {
-                // Режим редактирования
                 days[editIndex] = dayData;
             } else {
-                // Новый день
                 days.push(dayData);
             }
 
             saveData();
             renderAll();
             resetDayForm();
-            // Закрыть модальное окно
-            const modal = bootstrap.Modal.getInstance(document.getElementById('addDayModal'));
-            modal.hide();
+            bootstrap.Modal.getInstance(document.getElementById('addDayModal')).hide();
         }
 
         function editDay(index) {
             const day = days[index];
             if (!day) return;
-            // Заполняем форму
             document.getElementById('editDayIndex').value = index;
             document.getElementById('dayDate').value = parseDate(day.date).toISOString().split('T')[0];
             document.getElementById('dayType').value = day.type;
+            // Установить категорию, если есть совпадение по названию
+            const preset = presets.find(p => p.name === day.category);
+            document.getElementById('presetSelect').value = preset ? preset.id : '';
             document.getElementById('dayIncome').value = day.income;
             document.getElementById('dayExpense').value = day.expense;
-            document.getElementById('presetSelect').value = ''; // Сбрасываем пресет
             document.getElementById('dayModalTitle').textContent = 'Редактировать день';
-            // Открыть модальное окно
             new bootstrap.Modal(document.getElementById('addDayModal')).show();
         }
 
@@ -474,33 +476,11 @@
             document.getElementById('dayModalTitle').textContent = 'Добавить день';
         }
 
-        // При выборе пресета в форме дня
-        function applyPresetToDayForm() {
-            const presetId = document.getElementById('presetSelect').value;
-            if (!presetId) return;
-            const preset = presets.find(p => p.id === presetId);
-            if (!preset) return;
-            // Устанавливаем тип дня
-            document.getElementById('dayType').value = preset.dayType;
-            // Устанавливаем доход/расход в зависимости от типа пресета
-            if (preset.type === 'income' || preset.type === 'both') {
-                document.getElementById('dayIncome').value = preset.income;
-            }
-            if (preset.type === 'expense' || preset.type === 'both') {
-                document.getElementById('dayExpense').value = preset.expense;
-            }
-        }
-
-        // ======  ЛОГИКА ПРЕСЕТОВ  ======
+        // ====== ЛОГИКА КАТЕГОРИЙ ======
         function showAddPresetForm() {
             document.getElementById('addPresetFormContainer').style.display = 'block';
             document.getElementById('editPresetId').value = '';
             document.getElementById('presetName').value = '';
-            document.getElementById('presetType').value = 'income';
-            document.getElementById('presetIncome').value = 0;
-            document.getElementById('presetExpense').value = 0;
-            document.getElementById('presetDayType').value = 'working';
-            togglePresetAmountFields();
         }
 
         function hidePresetForm() {
@@ -508,44 +488,25 @@
             document.getElementById('editPresetId').value = '';
         }
 
-        function togglePresetAmountFields() {
-            const type = document.getElementById('presetType').value;
-            document.getElementById('presetIncomeGroup').style.display = (type === 'income' || type === 'both') ? 'block' : 'none';
-            document.getElementById('presetExpenseGroup').style.display = (type === 'expense' || type === 'both') ? 'block' : 'none';
-        }
-
         function savePreset() {
             const name = document.getElementById('presetName').value.trim();
             if (!name) {
-                alert('Введите название пресета!');
+                alert('Введите название категории!');
                 return;
             }
-            const type = document.getElementById('presetType').value;
-            const income = parseFloat(document.getElementById('presetIncome').value) || 0;
-            const expense = parseFloat(document.getElementById('presetExpense').value) || 0;
-            const dayType = document.getElementById('presetDayType').value;
             const editId = document.getElementById('editPresetId').value;
 
             if (editId) {
-                // Редактирование существующего пресета
                 const preset = presets.find(p => p.id === editId);
                 if (preset) {
                     preset.name = name;
-                    preset.type = type;
-                    preset.income = income;
-                    preset.expense = expense;
-                    preset.dayType = dayType;
+                    // Обновить категорию в существующих днях
+                    days.forEach(day => {
+                        if (day.category === preset.name) day.category = name;
+                    });
                 }
             } else {
-                // Новый пресет
-                presets.push({
-                    id: generateId(),
-                    name,
-                    type,
-                    income,
-                    expense,
-                    dayType
-                });
+                presets.push({ id: generateId(), name });
             }
 
             saveData();
@@ -558,16 +519,11 @@
             if (!preset) return;
             document.getElementById('editPresetId').value = preset.id;
             document.getElementById('presetName').value = preset.name;
-            document.getElementById('presetType').value = preset.type;
-            document.getElementById('presetIncome').value = preset.income;
-            document.getElementById('presetExpense').value = preset.expense;
-            document.getElementById('presetDayType').value = preset.dayType;
-            togglePresetAmountFields();
             document.getElementById('addPresetFormContainer').style.display = 'block';
         }
 
         function deletePreset(id) {
-            if (confirm('Удалить пресет?')) {
+            if (confirm('Удалить категорию?')) {
                 presets = presets.filter(p => p.id !== id);
                 saveData();
                 renderAll();
@@ -575,16 +531,13 @@
             }
         }
 
-        // При открытии модального окна "Добавить день" сбрасываем форму (если не редактирование)
+        // Сброс формы при открытии модального окна добавления дня
         document.getElementById('addDayModal').addEventListener('show.bs.modal', function(event) {
-            // Если модальное окно открывается по кнопке "Добавить день", а не из editDay,
-            // editDay сам устанавливает поля, поэтому мы проверим, не установлен ли editIndex
             const editIndex = document.getElementById('editDayIndex').value;
             if (editIndex === '-1' || event.relatedTarget && event.relatedTarget.getAttribute('data-bs-target') === '#addDayModal') {
                 resetDayForm();
             }
         });
-
     </script>
 </body>
 </html>
