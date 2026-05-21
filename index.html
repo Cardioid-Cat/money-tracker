@@ -165,24 +165,44 @@
         }
 
         async function loadData() {
-            try {
-                const response = await fetch('/api/load');
-                if (!response.ok) throw new Error('Ошибка загрузки');
-                const data = await response.json();
-                days = data.days || [];
-                presets = data.presets || [];
-                console.log('📥 Данные загружены из облака');
-                // Обновим и localStorage для оффлайн-режима
-                localStorage.setItem('salary_diary_days', JSON.stringify(days));
-                localStorage.setItem('salary_diary_presets', JSON.stringify(presets));
-            } catch (e) {
-                console.warn('Облако недоступно, берём данные из localStorage');
-                const savedDays = localStorage.getItem('salary_diary_days');
-                const savedPresets = localStorage.getItem('salary_diary_presets');
-                days = savedDays ? JSON.parse(savedDays) : [];
-                presets = savedPresets ? JSON.parse(savedPresets) : [];
+    try {
+        const response = await fetch('/api/load');
+        if (!response.ok) throw new Error('Ошибка загрузки');
+        const data = await response.json();
+
+        // Проверяем, есть ли в ответе реальные данные
+        const hasRemoteDays = Array.isArray(data.days) && data.days.length > 0;
+        const hasRemotePresets = Array.isArray(data.presets) && data.presets.length > 0;
+
+        if (hasRemoteDays || hasRemotePresets) {
+            // В облаке что-то есть – используем его
+            days = data.days || [];
+            presets = data.presets || [];
+            console.log('📥 Данные загружены из облака');
+            // Обновляем localStorage актуальными облачными данными
+            localStorage.setItem('salary_diary_days', JSON.stringify(days));
+            localStorage.setItem('salary_diary_presets', JSON.stringify(presets));
+        } else {
+            // Облако пустое – берём данные из localStorage, если они там есть
+            console.warn('Облако пустое, пробуем localStorage');
+            const savedDays = localStorage.getItem('salary_diary_days');
+            const savedPresets = localStorage.getItem('salary_diary_presets');
+            days = savedDays ? JSON.parse(savedDays) : [];
+            presets = savedPresets ? JSON.parse(savedPresets) : [];
+            // Если в localStorage что-то было – сразу отправляем это в облако
+            if (days.length > 0 || presets.length > 0) {
+                console.log('📤 Отправляем локальные данные в облако...');
+                await saveData(); // сохранит в KV то, что взяли из localStorage
             }
         }
+    } catch (e) {
+        console.warn('Облако недоступно, берём данные из localStorage');
+        const savedDays = localStorage.getItem('salary_diary_days');
+        const savedPresets = localStorage.getItem('salary_diary_presets');
+        days = savedDays ? JSON.parse(savedDays) : [];
+        presets = savedPresets ? JSON.parse(savedPresets) : [];
+    }
+}
 
         // ====== ИНИЦИАЛИЗАЦИЯ ======
         document.addEventListener('DOMContentLoaded', async function() {
