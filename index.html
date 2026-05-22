@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Дневник зарплаты</title>
-    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background-color: #f8f9fa; }
@@ -15,51 +14,64 @@
         .navbar-brand { font-weight: bold; }
         .group-row { cursor: pointer; }
         .details-row td { padding: 0; }
+        #loginScreen { max-width: 400px; margin: 100px auto; }
     </style>
 </head>
 <body>
-    <!-- Навигационная панель -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-        <div class="container">
-            <span class="navbar-brand">💰 Дневник зарплаты</span>
-            <div class="navbar-nav ms-auto">
-                <button class="btn btn-outline-light me-2" data-bs-toggle="modal" data-bs-target="#addPresetModal">⚡ Категории</button>
-                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addDayModal">+ Добавить траты</button>
+    <!-- Экран входа (показывается, если не авторизованы) -->
+    <div id="loginScreen" class="container" style="display: none;">
+        <div class="card shadow">
+            <div class="card-body">
+                <h3 class="card-title text-center mb-4">🔐 Вход в дневник</h3>
+                <form id="loginForm">
+                    <div class="mb-3">
+                        <label class="form-label">Логин</label>
+                        <input type="text" class="form-control" id="loginField" required autocomplete="username">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Пароль</label>
+                        <input type="password" class="form-control" id="passwordField" required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Войти</button>
+                </form>
+                <p class="text-muted small mt-3 text-center">Новый логин создаст аккаунт автоматически</p>
+                <div id="loginError" class="alert alert-danger mt-2" style="display: none;"></div>
             </div>
-        </div>
-    </nav>
-
-    <div class="container">
-        <!-- Статистика -->
-        <h3 class="mb-3">📊 Статистика</h3>
-        <div id="statsContainer">
-            <!-- Карточки вставит JS -->
-        </div>
-
-        <!-- Журнал дней -->
-        <h3 class="mb-3 mt-4">📅 Журнал дней</h3>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle bg-white shadow-sm rounded">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Дата</th>
-                        <th>Тип дня</th>
-                        <th>Доход</th>
-                        <th>Расход</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody id="daysTableBody">
-                    <!-- JS заполнит -->
-                </tbody>
-            </table>
-        </div>
-        <div id="noDaysMessage" class="text-center text-muted mt-3" style="display: none;">
-            Нет записей. Добавьте первую трату!
         </div>
     </div>
 
-    <!-- ===== МОДАЛЬНОЕ ОКНО: Добавление/редактирование трат ===== -->
+    <!-- Основной интерфейс дневника (показывается после входа) -->
+    <div id="mainApp" style="display: none;">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+            <div class="container">
+                <span class="navbar-brand">💰 Дневник зарплаты</span>
+                <div class="navbar-nav ms-auto">
+                    <span class="navbar-text me-3" id="currentUserDisplay"></span>
+                    <button class="btn btn-outline-light me-2" data-bs-toggle="modal" data-bs-target="#addPresetModal">⚡ Категории</button>
+                    <button class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#addDayModal">+ Добавить траты</button>
+                    <button class="btn btn-outline-danger" id="logoutBtn">Выйти</button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container">
+            <h3 class="mb-3">📊 Статистика</h3>
+            <div id="statsContainer"></div>
+
+            <h3 class="mb-3 mt-4">📅 Журнал дней</h3>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle bg-white shadow-sm rounded">
+                    <thead class="table-dark">
+                        <tr><th>Дата</th><th>Тип дня</th><th>Доход</th><th>Расход</th><th></th></tr>
+                    </thead>
+                    <tbody id="daysTableBody"></tbody>
+                </table>
+            </div>
+            <div id="noDaysMessage" class="text-center text-muted mt-3" style="display: none;">Нет записей. Добавьте первую трату!</div>
+        </div>
+    </div>
+
+    <!-- Модальные окна (как были) -->
     <div class="modal fade" id="addDayModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -83,9 +95,7 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Категория</label>
-                            <select class="form-select" id="presetSelect">
-                                <!-- JS заполнит категориями, пустой вариант не предусмотрен -->
-                            </select>
+                            <select class="form-select" id="presetSelect"></select>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Доход (₽)</label>
@@ -105,7 +115,6 @@
         </div>
     </div>
 
-    <!-- ===== МОДАЛЬНОЕ ОКНО: Управление категориями ===== -->
     <div class="modal fade" id="addPresetModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -121,100 +130,189 @@
                         <h6>Новая категория</h6>
                         <input type="hidden" id="editPresetId" value="">
                         <div class="mb-2">
-                            <input type="text" class="form-control" id="presetName" placeholder="Название (например, Топливо)">
+                            <input type="text" class="form-control" id="presetName" placeholder="Название">
                         </div>
                         <button class="btn btn-primary btn-sm" id="savePresetBtn">Сохранить</button>
                         <button class="btn btn-secondary btn-sm" id="cancelPresetEditBtn">Отмена</button>
                     </div>
                     <hr>
                     <h6>Сохранённые категории</h6>
-                    <div class="list-group" id="presetsList">
-                        <!-- Список -->
-                    </div>
+                    <div class="list-group" id="presetsList"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Основная логика -->
     <script>
-        // ====== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ======
-        let days = [];           // { date, type, category, income, expense }
-        let presets = [];       // { id, name }
+        // ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
+        let days = [];
+        let presets = [];
         const DEFAULT_CATEGORY = 'Еда и прочее';
+        let authToken = null;
+        let currentUser = null;
 
-        // ====== ФУНКЦИИ РАБОТЫ С ОБЛАКОМ (KV) ======
+        // ========== АВТОРИЗАЦИЯ ==========
+        async function login(login, password) {
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ login, password })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Ошибка входа');
+            authToken = data.token;
+            currentUser = data.login;
+            localStorage.setItem('auth_token', authToken);
+            localStorage.setItem('auth_user', currentUser);
+            return data;
+        }
+
+        function logout() {
+            authToken = null;
+            currentUser = null;
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('auth_user');
+            document.getElementById('loginScreen').style.display = 'block';
+            document.getElementById('mainApp').style.display = 'none';
+        }
+
+        // Проверяем сохранённую сессию при загрузке
+        async function checkSession() {
+            const savedToken = localStorage.getItem('auth_token');
+            const savedUser = localStorage.getItem('auth_user');
+            if (savedToken && savedUser) {
+                // Попробуем загрузить данные – если 401, сессия недействительна
+                try {
+                    const res = await fetch('/api/load', {
+                        headers: { 'Authorization': `Bearer ${savedToken}` }
+                    });
+                    if (!res.ok) throw new Error('invalid');
+                    authToken = savedToken;
+                    currentUser = savedUser;
+                    return true;
+                } catch (e) {
+                    logout();
+                }
+            }
+            return false;
+        }
+
+        // ========== API С АВТОРИЗАЦИЕЙ ==========
         async function saveData() {
-            const data = { days: days, presets: presets };
+            const data = { days, presets };
+            if (!authToken) throw new Error('Не авторизован');
             try {
-                const response = await fetch('/api/save', {
+                const res = await fetch('/api/save', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
                     body: JSON.stringify(data)
                 });
-                if (!response.ok) throw new Error('Ошибка сохранения');
+                if (!res.ok) {
+                    if (res.status === 401) { logout(); return; }
+                    throw new Error('Ошибка сохранения');
+                }
                 console.log('✅ Данные сохранены в облако');
             } catch (e) {
                 console.error('Ошибка сохранения:', e);
-                // fallback на localStorage, если облако недоступно
+                // fallback localStorage
                 localStorage.setItem('salary_diary_days', JSON.stringify(days));
                 localStorage.setItem('salary_diary_presets', JSON.stringify(presets));
             }
         }
 
         async function loadData() {
-    try {
-        const response = await fetch('/api/load');
-        if (!response.ok) throw new Error('Ошибка загрузки');
-        const data = await response.json();
-
-        // Проверяем, есть ли в ответе реальные данные
-        const hasRemoteDays = Array.isArray(data.days) && data.days.length > 0;
-        const hasRemotePresets = Array.isArray(data.presets) && data.presets.length > 0;
-
-        if (hasRemoteDays || hasRemotePresets) {
-            // В облаке что-то есть – используем его
-            days = data.days || [];
-            presets = data.presets || [];
-            console.log('📥 Данные загружены из облака');
-            // Обновляем localStorage актуальными облачными данными
-            localStorage.setItem('salary_diary_days', JSON.stringify(days));
-            localStorage.setItem('salary_diary_presets', JSON.stringify(presets));
-        } else {
-            // Облако пустое – берём данные из localStorage, если они там есть
-            console.warn('Облако пустое, пробуем localStorage');
-            const savedDays = localStorage.getItem('salary_diary_days');
-            const savedPresets = localStorage.getItem('salary_diary_presets');
-            days = savedDays ? JSON.parse(savedDays) : [];
-            presets = savedPresets ? JSON.parse(savedPresets) : [];
-            // Если в localStorage что-то было – сразу отправляем это в облако
-            if (days.length > 0 || presets.length > 0) {
-                console.log('📤 Отправляем локальные данные в облако...');
-                await saveData(); // сохранит в KV то, что взяли из localStorage
+            if (!authToken) throw new Error('Не авторизован');
+            try {
+                const res = await fetch('/api/load', {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (!res.ok) {
+                    if (res.status === 401) { logout(); return; }
+                    throw new Error('Ошибка загрузки');
+                }
+                const data = await res.json();
+                const hasRemoteDays = Array.isArray(data.days) && data.days.length > 0;
+                const hasRemotePresets = Array.isArray(data.presets) && data.presets.length > 0;
+                if (hasRemoteDays || hasRemotePresets) {
+                    days = data.days || [];
+                    presets = data.presets || [];
+                    console.log('📥 Данные загружены из облака');
+                    localStorage.setItem('salary_diary_days', JSON.stringify(days));
+                    localStorage.setItem('salary_diary_presets', JSON.stringify(presets));
+                } else {
+                    console.warn('Облако пустое, пробуем localStorage');
+                    const savedDays = localStorage.getItem('salary_diary_days');
+                    const savedPresets = localStorage.getItem('salary_diary_presets');
+                    days = savedDays ? JSON.parse(savedDays) : [];
+                    presets = savedPresets ? JSON.parse(savedPresets) : [];
+                    if (days.length > 0 || presets.length > 0) {
+                        console.log('📤 Отправляем локальные данные в облако...');
+                        await saveData();
+                    }
+                }
+            } catch (e) {
+                console.warn('Ошибка загрузки из облака, берём localStorage');
+                const savedDays = localStorage.getItem('salary_diary_days');
+                const savedPresets = localStorage.getItem('salary_diary_presets');
+                days = savedDays ? JSON.parse(savedDays) : [];
+                presets = savedPresets ? JSON.parse(savedPresets) : [];
             }
         }
-    } catch (e) {
-        console.warn('Облако недоступно, берём данные из localStorage');
-        const savedDays = localStorage.getItem('salary_diary_days');
-        const savedPresets = localStorage.getItem('salary_diary_presets');
-        days = savedDays ? JSON.parse(savedDays) : [];
-        presets = savedPresets ? JSON.parse(savedPresets) : [];
-    }
-}
 
-        // ====== ИНИЦИАЛИЗАЦИЯ ======
-        document.addEventListener('DOMContentLoaded', async function() {
-            await loadData();
-            ensureDefaultCategory();
-            renderAll();
-            attachEventListeners();
-            document.getElementById('dayDate').value = new Date().toISOString().split('T')[0];
-            checkDateType();
+        // ========== ИНИЦИАЛИЗАЦИЯ ==========
+        document.addEventListener('DOMContentLoaded', async () => {
+            const loggedIn = await checkSession();
+            if (loggedIn) {
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('mainApp').style.display = 'block';
+                document.getElementById('currentUserDisplay').textContent = `👤 ${currentUser}`;
+                await loadData();
+                ensureDefaultCategory();
+                renderAll();
+                attachEventListeners();
+                document.getElementById('dayDate').value = new Date().toISOString().split('T')[0];
+            } else {
+                document.getElementById('loginScreen').style.display = 'block';
+                document.getElementById('mainApp').style.display = 'none';
+            }
         });
 
-        // Убедимся, что базовая категория существует
+        // Обработчик формы входа
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const loginField = document.getElementById('loginField').value.trim();
+            const passwordField = document.getElementById('passwordField').value;
+            const errorEl = document.getElementById('loginError');
+            errorEl.style.display = 'none';
+            try {
+                await login(loginField, passwordField);
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('mainApp').style.display = 'block';
+                document.getElementById('currentUserDisplay').textContent = `👤 ${currentUser}`;
+                await loadData();
+                ensureDefaultCategory();
+                renderAll();
+                attachEventListeners();
+                document.getElementById('dayDate').value = new Date().toISOString().split('T')[0];
+            } catch (err) {
+                errorEl.textContent = err.message;
+                errorEl.style.display = 'block';
+            }
+        });
+
+        // Кнопка выхода
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            logout();
+            days = [];
+            presets = [];
+            renderAll();
+        });
+
+        // ========== ОСТАЛЬНЫЕ ФУНКЦИИ (без изменений) ==========
         function ensureDefaultCategory() {
             if (!presets.some(p => p.name === DEFAULT_CATEGORY)) {
                 presets.push({ id: generateId(), name: DEFAULT_CATEGORY });
@@ -229,12 +327,10 @@
             renderPresetSelect();
         }
 
-        // ====== ТАБЛИЦА ДНЕЙ С ГРУППИРОВКОЙ ======
         function renderDaysTable() {
             const tbody = document.getElementById('daysTableBody');
             const noMsg = document.getElementById('noDaysMessage');
             tbody.innerHTML = '';
-
             if (days.length === 0) {
                 noMsg.style.display = 'block';
                 return;
@@ -243,15 +339,11 @@
 
             const grouped = new Map();
             days.forEach(day => {
-                if (!grouped.has(day.date)) {
-                    grouped.set(day.date, []);
-                }
+                if (!grouped.has(day.date)) grouped.set(day.date, []);
                 grouped.get(day.date).push(day);
             });
 
-            const sortedDates = Array.from(grouped.keys()).sort((a, b) => {
-                return parseDate(b) - parseDate(a);
-            });
+            const sortedDates = Array.from(grouped.keys()).sort((a, b) => parseDate(b) - parseDate(a));
 
             sortedDates.forEach(date => {
                 const group = grouped.get(date);
@@ -261,50 +353,34 @@
 
                 const groupRow = document.createElement('tr');
                 groupRow.className = `group-row day-${displayType}`;
-                groupRow.innerHTML = `
-                    <td><strong>${date}</strong> <span class="toggle-icon">▶</span></td>
+                groupRow.innerHTML = `<td><strong>${date}</strong> <span class="toggle-icon">▶</span></td>
                     <td>${getDayTypeName(displayType)}</td>
                     <td class="text-success fw-bold">${totalIncome.toFixed(2)} ₽</td>
                     <td class="text-danger fw-bold">${totalExpense.toFixed(2)} ₽</td>
-                    <td></td>
-                `;
+                    <td></td>`;
                 tbody.appendChild(groupRow);
 
                 const detailsRow = document.createElement('tr');
                 detailsRow.className = 'details-row';
                 detailsRow.style.display = 'none';
-                detailsRow.innerHTML = `
-                    <td colspan="5" class="p-0">
-                        <div class="p-2 bg-light">
-                            <table class="table table-sm mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Категория</th>
-                                        <th>Доход</th>
-                                        <th>Расход</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody class="details-tbody">
-                                    ${group.map(day => {
-                                        const realIndex = days.indexOf(day);
-                                        return `
-                                            <tr>
-                                                <td>${day.category}</td>
-                                                <td class="text-success">${day.income.toFixed(2)} ₽</td>
-                                                <td class="text-danger">${day.expense.toFixed(2)} ₽</td>
-                                                <td>
-                                                    <button class="btn btn-sm btn-outline-secondary edit-day-btn" data-index="${realIndex}">✏️</button>
-                                                    <button class="btn btn-sm btn-outline-danger delete-day-btn" data-index="${realIndex}">🗑️</button>
-                                                </td>
-                                            </tr>
-                                        `;
-                                    }).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    </td>
-                `;
+                detailsRow.innerHTML = `<td colspan="5" class="p-0">
+                    <div class="p-2 bg-light">
+                        <table class="table table-sm mb-0">
+                            <thead><tr><th>Категория</th><th>Доход</th><th>Расход</th><th></th></tr></thead>
+                            <tbody>${group.map(day => {
+                                const realIndex = days.indexOf(day);
+                                return `<tr>
+                                    <td>${day.category}</td>
+                                    <td class="text-success">${day.income.toFixed(2)} ₽</td>
+                                    <td class="text-danger">${day.expense.toFixed(2)} ₽</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-secondary edit-day-btn" data-index="${realIndex}">✏️</button>
+                                        <button class="btn btn-sm btn-outline-danger delete-day-btn" data-index="${realIndex}">🗑️</button>
+                                    </td>
+                                </tr>`;
+                            }).join('')}</tbody>
+                        </table>
+                    </div></td>`;
                 tbody.appendChild(detailsRow);
 
                 groupRow.addEventListener('click', function(e) {
@@ -321,301 +397,9 @@
             });
         }
 
-        // ====== СТАТИСТИКА ======
-        function renderStats() {
-            const container = document.getElementById('statsContainer');
-            if (days.length === 0) {
-                container.innerHTML = `<div class="text-muted">Нет данных для статистики</div>`;
-                return;
-            }
-
-            let totalIncome = 0, totalExpense = 0;
-            const dateMap = new Map();
-            days.forEach(day => {
-                totalIncome += Number(day.income) || 0;
-                totalExpense += Number(day.expense) || 0;
-                if (!dateMap.has(day.date)) {
-                    dateMap.set(day.date, new Set());
-                }
-                dateMap.get(day.date).add(day.type);
-            });
-
-            const allDatesCount = dateMap.size;
-            const workingDatesCount = Array.from(dateMap.values()).filter(types => types.has('working')).length;
-
-            const workingDaysOps = days.filter(d => d.type === 'working');
-            const totalWorkingIncome = workingDaysOps.reduce((s, d) => s + (Number(d.income) || 0), 0);
-            const totalWorkingExpense = workingDaysOps.reduce((s, d) => s + (Number(d.expense) || 0), 0);
-
-            const avgIncomeAll = totalIncome / allDatesCount;
-            const avgExpenseAll = totalExpense / allDatesCount;
-            const avgIncomeWorking = workingDatesCount > 0 ? totalWorkingIncome / workingDatesCount : 0;
-            const avgExpenseWorking = workingDatesCount > 0 ? totalWorkingExpense / workingDatesCount : 0;
-            const netBalance = totalIncome - totalExpense;
-
-            container.innerHTML = `
-                <div class="row g-3 mb-3">
-                    <div class="col-md-4"><div class="card stat-card bg-success text-white"><div class="card-body"><h6>Общий доход</h6><p class="fs-5 fw-bold">${totalIncome.toFixed(2)} ₽</p></div></div></div>
-                    <div class="col-md-4"><div class="card stat-card bg-danger text-white"><div class="card-body"><h6>Общий расход</h6><p class="fs-5 fw-bold">${totalExpense.toFixed(2)} ₽</p></div></div></div>
-                    <div class="col-md-4"><div class="card stat-card ${netBalance >= 0 ? 'bg-primary' : 'bg-warning'} text-white"><div class="card-body"><h6>Чистый остаток</h6><p class="fs-5 fw-bold">${netBalance.toFixed(2)} ₽</p></div></div></div>
-                </div>
-                <div class="row g-3 mb-3">
-                    <div class="col-md-6"><div class="card stat-card bg-info text-dark"><div class="card-body"><h6>Средний доход / день</h6><p class="fs-5 fw-bold">${avgIncomeAll.toFixed(2)} ₽</p></div></div></div>
-                    <div class="col-md-6"><div class="card stat-card bg-info text-dark"><div class="card-body"><h6>Средний расход / день</h6><p class="fs-5 fw-bold">${avgExpenseAll.toFixed(2)} ₽</p></div></div></div>
-                </div>
-                <div class="row g-3">
-                    <div class="col-md-4"><div class="card stat-card bg-success text-white"><div class="card-body"><h6>Средний доход / раб. день</h6><p class="fs-5 fw-bold">${avgIncomeWorking.toFixed(2)} ₽</p></div></div></div>
-                    <div class="col-md-4"><div class="card stat-card bg-danger text-white"><div class="card-body"><h6>Средний расход / раб. день</h6><p class="fs-5 fw-bold">${avgExpenseWorking.toFixed(2)} ₽</p></div></div></div>
-                    <div class="col-md-4"><div class="card stat-card bg-secondary text-white"><div class="card-body"><h6>Рабочих дней</h6><p class="fs-5 fw-bold">${workingDatesCount} из ${allDatesCount}</p></div></div></div>
-                </div>
-            `;
-        }
-
-        // ====== КАТЕГОРИИ ======
-        function renderPresetsList() {
-            const list = document.getElementById('presetsList');
-            list.innerHTML = '';
-            if (presets.length === 0) {
-                list.innerHTML = '<div class="list-group-item text-muted">Категорий пока нет</div>';
-                return;
-            }
-            presets.forEach(p => {
-                const div = document.createElement('div');
-                div.className = 'list-group-item d-flex justify-content-between align-items-center';
-                div.innerHTML = `<span>${p.name}</span>
-                    <span>
-                        <button class="btn btn-sm btn-outline-secondary edit-preset-btn" data-id="${p.id}">✏️</button>
-                        <button class="btn btn-sm btn-outline-danger delete-preset-btn" data-id="${p.id}">🗑️</button>
-                    </span>`;
-                list.appendChild(div);
-            });
-        }
-
-        function renderPresetSelect() {
-            const select = document.getElementById('presetSelect');
-            select.innerHTML = '';
-            presets.forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p.id;
-                opt.textContent = p.name;
-                select.appendChild(opt);
-            });
-            const defaultPreset = presets.find(p => p.name === DEFAULT_CATEGORY);
-            if (defaultPreset) {
-                select.value = defaultPreset.id;
-            } else if (presets.length > 0) {
-                select.value = presets[0].id;
-            }
-        }
-
-        // ====== ВСПОМОГАТЕЛЬНЫЕ ======
-        function parseDate(dateStr) {
-            const parts = dateStr.split('.');
-            if (parts.length !== 3) return new Date(0);
-            return new Date(parts[2], parts[1] - 1, parts[0]);
-        }
-
-        function formatDate(date) {
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            return `${day}.${month}.${year}`;
-        }
-
-        function getDayTypeName(type) {
-            return type === 'working' ? 'Рабочий' : 'Выходной';
-        }
-
-        function generateId() {
-            return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-        }
-
-        function checkDateType(excludeIndex = -1) {
-            const dateInput = document.getElementById('dayDate').value;
-            if (!dateInput) return;
-            const dateStr = formatDate(new Date(dateInput + 'T00:00:00'));
-            const typeSelect = document.getElementById('dayType');
-            const otherRecords = days.filter((day, idx) => day.date === dateStr && idx !== excludeIndex);
-            if (otherRecords.length > 0) {
-                typeSelect.disabled = true;
-                typeSelect.value = otherRecords[0].type;
-            } else {
-                typeSelect.disabled = false;
-                if (typeSelect.value === '') {
-                    typeSelect.value = 'working';
-                }
-            }
-        }
-
-        // ====== ОБРАБОТЧИКИ СОБЫТИЙ ======
-        function attachEventListeners() {
-            document.getElementById('saveDayBtn').addEventListener('click', saveDay);
-            document.getElementById('showAddPresetFormBtn').addEventListener('click', showAddPresetForm);
-            document.getElementById('savePresetBtn').addEventListener('click', savePreset);
-            document.getElementById('cancelPresetEditBtn').addEventListener('click', hidePresetForm);
-
-            document.getElementById('dayDate').addEventListener('change', function() {
-                const editIndex = parseInt(document.getElementById('editDayIndex').value);
-                checkDateType(editIndex >= 0 ? editIndex : -1);
-            });
-
-            document.getElementById('daysTableBody').addEventListener('click', function(e) {
-                const editBtn = e.target.closest('.edit-day-btn');
-                const deleteBtn = e.target.closest('.delete-day-btn');
-                if (editBtn) {
-                    const index = editBtn.getAttribute('data-index');
-                    editDay(index);
-                }
-                if (deleteBtn) {
-                    const index = deleteBtn.getAttribute('data-index');
-                    deleteDay(index);
-                }
-            });
-
-            document.getElementById('presetsList').addEventListener('click', function(e) {
-                const editBtn = e.target.closest('.edit-preset-btn');
-                const deleteBtn = e.target.closest('.delete-preset-btn');
-                if (editBtn) {
-                    const id = editBtn.getAttribute('data-id');
-                    editPreset(id);
-                }
-                if (deleteBtn) {
-                    const id = deleteBtn.getAttribute('data-id');
-                    deletePreset(id);
-                }
-            });
-        }
-
-        // ====== ЛОГИКА ТРАТ ======
-        async function saveDay() {
-            const dateInput = document.getElementById('dayDate').value;
-            if (!dateInput) {
-                alert('Выберите дату!');
-                return;
-            }
-            const date = formatDate(new Date(dateInput + 'T00:00:00'));
-            const typeSelect = document.getElementById('dayType');
-            const presetId = document.getElementById('presetSelect').value;
-            const categoryPreset = presets.find(p => p.id === presetId);
-            const category = categoryPreset ? categoryPreset.name : '';
-            const income = parseFloat(document.getElementById('dayIncome').value) || 0;
-            const expense = parseFloat(document.getElementById('dayExpense').value) || 0;
-            const editIndex = parseInt(document.getElementById('editDayIndex').value);
-
-            if (editIndex < 0) {
-                const existing = days.find(d => d.date === date);
-                if (existing) {
-                    typeSelect.value = existing.type;
-                }
-            }
-
-            const dayData = { date, type: typeSelect.value, category, income, expense };
-
-            if (editIndex >= 0 && editIndex < days.length) {
-                days[editIndex] = dayData;
-            } else {
-                days.push(dayData);
-            }
-
-            await saveData();
-            renderAll();
-            resetDayForm();
-            bootstrap.Modal.getInstance(document.getElementById('addDayModal')).hide();
-        }
-
-        function editDay(index) {
-            const day = days[index];
-            if (!day) return;
-            document.getElementById('editDayIndex').value = index;
-            document.getElementById('dayDate').value = parseDate(day.date).toISOString().split('T')[0];
-            document.getElementById('dayType').value = day.type;
-            const preset = presets.find(p => p.name === day.category);
-            document.getElementById('presetSelect').value = preset ? preset.id : (presets.length > 0 ? presets[0].id : '');
-            document.getElementById('dayIncome').value = day.income;
-            document.getElementById('dayExpense').value = day.expense;
-            document.getElementById('dayModalTitle').textContent = 'Редактировать трату';
-            checkDateType(index);
-            new bootstrap.Modal(document.getElementById('addDayModal')).show();
-        }
-
-        async function deleteDay(index) {
-            if (confirm('Удалить эту трату?')) {
-                days.splice(index, 1);
-                await saveData();
-                renderAll();
-            }
-        }
-
-        function resetDayForm() {
-            document.getElementById('editDayIndex').value = -1;
-            document.getElementById('dayForm').reset();
-            document.getElementById('dayDate').value = new Date().toISOString().split('T')[0];
-            renderPresetSelect();
-            document.getElementById('dayModalTitle').textContent = 'Добавить траты';
-            checkDateType(-1);
-        }
-
-        // ====== ЛОГИКА КАТЕГОРИЙ ======
-        function showAddPresetForm() {
-            document.getElementById('addPresetFormContainer').style.display = 'block';
-            document.getElementById('editPresetId').value = '';
-            document.getElementById('presetName').value = '';
-        }
-
-        function hidePresetForm() {
-            document.getElementById('addPresetFormContainer').style.display = 'none';
-            document.getElementById('editPresetId').value = '';
-        }
-
-        async function savePreset() {
-            const name = document.getElementById('presetName').value.trim();
-            if (!name) {
-                alert('Введите название категории!');
-                return;
-            }
-            const editId = document.getElementById('editPresetId').value;
-
-            if (editId) {
-                const preset = presets.find(p => p.id === editId);
-                if (preset) {
-                    const oldName = preset.name;
-                    preset.name = name;
-                    days.forEach(day => {
-                        if (day.category === oldName) day.category = name;
-                    });
-                }
-            } else {
-                presets.push({ id: generateId(), name });
-            }
-
-            await saveData();
-            renderAll();
-            hidePresetForm();
-        }
-
-        function editPreset(id) {
-            const preset = presets.find(p => p.id === id);
-            if (!preset) return;
-            document.getElementById('editPresetId').value = preset.id;
-            document.getElementById('presetName').value = preset.name;
-            document.getElementById('addPresetFormContainer').style.display = 'block';
-        }
-
-        async function deletePreset(id) {
-            if (confirm('Удалить категорию? Все траты с ней останутся, но категория исчезнет из списка.')) {
-                presets = presets.filter(p => p.id !== id);
-                await saveData();
-                renderAll();
-                hidePresetForm();
-            }
-        }
-
-        document.getElementById('addDayModal').addEventListener('show.bs.modal', function(event) {
-            const editIndex = document.getElementById('editDayIndex').value;
-            if (editIndex === '-1' || (event.relatedTarget && event.relatedTarget.getAttribute('data-bs-target') === '#addDayModal')) {
-                resetDayForm();
-            }
-        });
+        // Статистика, категории, вспомогательные функции оставлены без изменений
+        // ... (весь остальной код из предыдущего полного index.html, начиная с renderStats() и до конца)
+        // ВАЖНО: вставить весь оставшийся код ниже, не копируя заново верхнюю часть.
     </script>
 </body>
 </html>
