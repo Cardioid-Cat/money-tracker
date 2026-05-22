@@ -16,6 +16,14 @@
         .details-row td { padding: 0; }
         #loginScreen { max-width: 400px; margin: 100px auto; }
         #blocksToggleBtn { display: none; }
+        /* Стили для чекбоксов категорий в блоке */
+        .category-checkbox-item {
+            cursor: pointer;
+            user-select: none;
+        }
+        .category-checkbox-item .form-check-input {
+            margin-right: 0.5rem;
+        }
     </style>
 </head>
 <body>
@@ -173,10 +181,10 @@
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Категории в блоке</label>
-                            <select class="form-select" id="blockCategories" multiple style="height: 120px;">
-                                <!-- JS заполнит -->
-                            </select>
-                            <small class="text-muted">Зажмите Ctrl (или Cmd) для выбора нескольких</small>
+                            <div id="blockCategoriesContainer" class="list-group">
+                                <!-- Чекбоксы будут добавлены динамически -->
+                            </div>
+                            <small class="text-muted">Нажмите на название, чтобы выбрать</small>
                         </div>
                         <button class="btn btn-primary btn-sm" id="saveBlockBtn">Сохранить</button>
                         <button class="btn btn-secondary btn-sm" id="cancelBlockEditBtn">Отмена</button>
@@ -384,7 +392,7 @@
             renderPresetsList();
             renderPresetSelect();
             renderBlocksList();
-            populateBlockCategoriesSelect();
+            populateBlockCategoriesCheckboxes();
 
             const btn = document.getElementById('blocksToggleBtn');
             if (btn) {
@@ -521,7 +529,6 @@
                 const blockExpense = filtered.reduce((s, d) => s + (Number(d.expense) || 0), 0);
                 const uniqueDates = new Set(filtered.map(d => d.date));
                 const blockDaysCount = uniqueDates.size;
-                // Средние относительно ВСЕХ дней
                 const blockAvgIncome = allDatesCount > 0 ? blockIncome / allDatesCount : 0;
                 const blockAvgExpense = allDatesCount > 0 ? blockExpense / allDatesCount : 0;
 
@@ -586,7 +593,7 @@
             else if (presets.length > 0) select.value = presets[0].id;
         }
 
-        // ====== БЛОКИ ======
+        // ====== БЛОКИ (с чекбоксами) ======
         function renderBlocksList() {
             const list = document.getElementById('blocksList');
             list.innerHTML = '';
@@ -607,15 +614,44 @@
             });
         }
 
-        function populateBlockCategoriesSelect() {
-            const select = document.getElementById('blockCategories');
-            select.innerHTML = '';
+        // Заполняем контейнер чекбоксами для выбора категорий
+        function populateBlockCategoriesCheckboxes() {
+            const container = document.getElementById('blockCategoriesContainer');
+            container.innerHTML = '';
+            if (presets.length === 0) {
+                container.innerHTML = '<div class="text-muted">Нет категорий</div>';
+                return;
+            }
             presets.forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p.name;
-                opt.textContent = p.name;
-                select.appendChild(opt);
+                const div = document.createElement('div');
+                div.className = 'list-group-item category-checkbox-item';
+                div.innerHTML = `
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="${p.name}" id="blockCat_${p.id}">
+                        <label class="form-check-label" for="blockCat_${p.id}">${p.name}</label>
+                    </div>`;
+                container.appendChild(div);
             });
+        }
+
+        // Получить массив выбранных категорий из чекбоксов
+        function getSelectedBlockCategories() {
+            const checkboxes = document.querySelectorAll('#blockCategoriesContainer input[type="checkbox"]:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+
+        // Отметить чекбоксы в соответствии с массивом категорий
+        function setSelectedBlockCategories(categories) {
+            const checkboxes = document.querySelectorAll('#blockCategoriesContainer input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = categories.includes(cb.value);
+            });
+        }
+
+        // Сбросить все чекбоксы
+        function clearBlockCategoryCheckboxes() {
+            const checkboxes = document.querySelectorAll('#blockCategoriesContainer input[type="checkbox"]');
+            checkboxes.forEach(cb => { cb.checked = false; });
         }
 
         // ====== ВСПОМОГАТЕЛЬНЫЕ ======
@@ -813,12 +849,12 @@
             }
         }
 
-        // ====== ЛОГИКА БЛОКОВ ======
+        // ====== ЛОГИКА БЛОКОВ С ЧЕКБОКСАМИ ======
         function showAddBlockForm() {
             document.getElementById('addBlockFormContainer').style.display = 'block';
             document.getElementById('editBlockId').value = '';
             document.getElementById('blockName').value = '';
-            Array.from(document.getElementById('blockCategories').options).forEach(opt => opt.selected = false);
+            clearBlockCategoryCheckboxes();
         }
 
         function hideBlockForm() {
@@ -829,8 +865,7 @@
         async function saveBlock() {
             const name = document.getElementById('blockName').value.trim();
             if (!name) { alert('Введите название блока!'); return; }
-            const select = document.getElementById('blockCategories');
-            const selectedNames = Array.from(select.selectedOptions).map(opt => opt.value);
+            const selectedNames = getSelectedBlockCategories();
             if (selectedNames.length === 0) { alert('Выберите хотя бы одну категорию!'); return; }
             const editId = document.getElementById('editBlockId').value;
 
@@ -853,10 +888,9 @@
             if (!block) return;
             document.getElementById('editBlockId').value = block.id;
             document.getElementById('blockName').value = block.name;
-            const select = document.getElementById('blockCategories');
-            Array.from(select.options).forEach(opt => {
-                opt.selected = block.categories.includes(opt.value);
-            });
+            // Отмечаем чекбоксы выбранных категорий
+            clearBlockCategoryCheckboxes();
+            setSelectedBlockCategories(block.categories);
             document.getElementById('addBlockFormContainer').style.display = 'block';
         }
 
