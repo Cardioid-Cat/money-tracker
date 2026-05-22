@@ -15,6 +15,7 @@
         .group-row { cursor: pointer; }
         .details-row td { padding: 0; }
         #loginScreen { max-width: 400px; margin: 100px auto; }
+        #blocksToggleBtn { cursor: pointer; }
     </style>
 </head>
 <body>
@@ -58,6 +59,7 @@
         <div class="container">
             <h3 class="mb-3">📊 Статистика</h3>
             <div id="statsContainer"></div>
+            <div id="blocksStatsContainer" style="display: none;"></div>
 
             <h3 class="mb-3 mt-4">📅 Журнал дней</h3>
             <div class="table-responsive">
@@ -183,9 +185,9 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
-        let days = [];           // { date, type, category, income, expense }
-        let presets = [];       // { id, name }
-        let blocks = [];        // { id, name, categories: [presetId, ...] }
+        let days = [];
+        let presets = [];
+        let blocks = [];
         const DEFAULT_CATEGORY = 'Еда и прочее';
         let authToken = null;
         let currentUser = null;
@@ -483,18 +485,34 @@
                 </div>
                 <div class="row g-3">
                     <div class="col-md-4"><div class="card stat-card bg-success text-white"><div class="card-body"><h6>Средний доход / раб. день</h6><p class="fs-5 fw-bold">${avgIncomeWorking.toFixed(2)} ₽</p></div></div></div>
-                    <div class="col-md-4"><div class="card stat-card bg-danger text-white"><div class="card-body"><h6>Средний расход / раб. день</h6><p class="fs-5 fw-bold">${avgExpenseWorking.toFixed(2)} ₽</p></div></div></div>
                     <div class="col-md-4"><div class="card stat-card bg-secondary text-white"><div class="card-body"><h6>Рабочих дней</h6><p class="fs-5 fw-bold">${workingDatesCount} из ${allDatesCount}</p></div></div></div>
+                    <div class="col-md-4">
+                        <div class="card stat-card bg-warning text-dark" id="blocksToggleBtn">
+                            <div class="card-body text-center" style="cursor: pointer;">
+                                <h6>📦 Блоки <span id="blocksToggleIcon">▼</span></h6>
+                                <p class="fs-6 fw-bold">Показать статистику по блокам</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>`;
 
-            // Статистика по блокам
+            container.innerHTML = html;
+
+            // Вешаем обработчик на кнопку
+            document.getElementById('blocksToggleBtn').addEventListener('click', toggleBlocksStats);
+
+            // Формируем контент блоков (он будет скрыт/показан кнопкой)
+            renderBlocksStats(allDatesCount);
+        }
+
+        function renderBlocksStats(allDatesCount) {
+            const container = document.getElementById('blocksStatsContainer');
+            let html = '';
             blocks.forEach(block => {
-                // Отбираем траты, категория которых входит в block.categories
                 const filtered = days.filter(d => block.categories.includes(d.category));
                 if (filtered.length === 0) return;
                 const blockIncome = filtered.reduce((s, d) => s + (Number(d.income) || 0), 0);
                 const blockExpense = filtered.reduce((s, d) => s + (Number(d.expense) || 0), 0);
-                // Уникальные даты среди этих трат
                 const uniqueDates = new Set(filtered.map(d => d.date));
                 const blockDaysCount = uniqueDates.size;
                 const blockAvgIncome = blockDaysCount > 0 ? blockIncome / blockDaysCount : 0;
@@ -512,8 +530,19 @@
                     <div class="col-md-4"><div class="card stat-card bg-secondary text-white"><div class="card-body"><h6>Дней</h6><p class="fs-5 fw-bold">${blockDaysCount} из ${allDatesCount}</p></div></div></div>
                 </div>`;
             });
-
             container.innerHTML = html;
+        }
+
+        function toggleBlocksStats() {
+            const container = document.getElementById('blocksStatsContainer');
+            const icon = document.getElementById('blocksToggleIcon');
+            if (container.style.display === 'none') {
+                container.style.display = 'block';
+                icon.textContent = '▲';
+            } else {
+                container.style.display = 'none';
+                icon.textContent = '▼';
+            }
         }
 
         // ====== КАТЕГОРИИ ======
@@ -593,14 +622,12 @@
         }
 
         function formatDate(dateInput) {
-            // dateInput – строка "yyyy-mm-dd"
             const parts = dateInput.split('-');
             if (parts.length !== 3) return '01.01.2020';
             return `${parts[2]}.${parts[1]}.${parts[0]}`;
         }
 
         function toDateInputValue(dateStr) {
-            // из dd.mm.yyyy в yyyy-mm-dd (без учёта часовых поясов)
             const parts = dateStr.split('.');
             if (parts.length !== 3) return '';
             return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
@@ -636,7 +663,6 @@
             document.getElementById('savePresetBtn').addEventListener('click', savePreset);
             document.getElementById('cancelPresetEditBtn').addEventListener('click', hidePresetForm);
 
-            // Блоки
             document.getElementById('showAddBlockFormBtn').addEventListener('click', showAddBlockForm);
             document.getElementById('saveBlockBtn').addEventListener('click', saveBlock);
             document.getElementById('cancelBlockEditBtn').addEventListener('click', hideBlockForm);
@@ -704,7 +730,6 @@
             const day = days[index];
             if (!day) return;
             document.getElementById('editDayIndex').value = index;
-            // Исправлено: прямое преобразование без сдвига даты
             document.getElementById('dayDate').value = toDateInputValue(day.date);
             document.getElementById('dayType').value = day.type;
             const preset = presets.find(p => p.name === day.category);
@@ -786,7 +811,6 @@
             document.getElementById('addBlockFormContainer').style.display = 'block';
             document.getElementById('editBlockId').value = '';
             document.getElementById('blockName').value = '';
-            // Сбросить выбранные категории
             Array.from(document.getElementById('blockCategories').options).forEach(opt => opt.selected = false);
         }
 
