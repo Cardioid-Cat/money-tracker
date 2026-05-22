@@ -488,7 +488,7 @@
                     <div class="col-md-4"><div class="card stat-card bg-secondary text-white"><div class="card-body"><h6>Рабочих дней</h6><p class="fs-5 fw-bold">${workingDatesCount} из ${allDatesCount}</p></div></div></div>
                     <div class="col-md-4">
                         <div class="card stat-card bg-warning text-dark" id="blocksToggleBtn">
-                            <div class="card-body text-center" style="cursor: pointer;">
+                            <div class="card-body text-center">
                                 <h6>📦 Блоки <span id="blocksToggleIcon">▼</span></h6>
                                 <p class="fs-6 fw-bold">Показать статистику по блокам</p>
                             </div>
@@ -497,11 +497,7 @@
                 </div>`;
 
             container.innerHTML = html;
-
-            // Вешаем обработчик на кнопку
-            document.getElementById('blocksToggleBtn').addEventListener('click', toggleBlocksStats);
-
-            // Формируем контент блоков (он будет скрыт/показан кнопкой)
+            // обработчик больше не вешаем здесь – делегирование в attachEventListeners
             renderBlocksStats(allDatesCount);
         }
 
@@ -538,10 +534,10 @@
             const icon = document.getElementById('blocksToggleIcon');
             if (container.style.display === 'none') {
                 container.style.display = 'block';
-                icon.textContent = '▲';
+                if (icon) icon.textContent = '▲';
             } else {
                 container.style.display = 'none';
-                icon.textContent = '▼';
+                if (icon) icon.textContent = '▼';
             }
         }
 
@@ -672,6 +668,7 @@
                 checkDateType(editIndex >= 0 ? editIndex : -1);
             });
 
+            // Делегирование кликов в таблице дней
             document.getElementById('daysTableBody').addEventListener('click', function(e) {
                 const editBtn = e.target.closest('.edit-day-btn');
                 const deleteBtn = e.target.closest('.delete-day-btn');
@@ -679,6 +676,7 @@
                 if (deleteBtn) deleteDay(deleteBtn.getAttribute('data-index'));
             });
 
+            // Делегирование кликов в списке категорий
             document.getElementById('presetsList').addEventListener('click', function(e) {
                 const editBtn = e.target.closest('.edit-preset-btn');
                 const deleteBtn = e.target.closest('.delete-preset-btn');
@@ -686,11 +684,19 @@
                 if (deleteBtn) deletePreset(deleteBtn.getAttribute('data-id'));
             });
 
+            // Делегирование кликов в списке блоков
             document.getElementById('blocksList').addEventListener('click', function(e) {
                 const editBtn = e.target.closest('.edit-block-btn');
                 const deleteBtn = e.target.closest('.delete-block-btn');
                 if (editBtn) editBlock(editBtn.getAttribute('data-id'));
                 if (deleteBtn) deleteBlock(deleteBtn.getAttribute('data-id'));
+            });
+
+            // Делегирование клика по кнопке блоков в статистике
+            document.getElementById('statsContainer').addEventListener('click', function(e) {
+                if (e.target.closest('#blocksToggleBtn')) {
+                    toggleBlocksStats();
+                }
             });
         }
 
