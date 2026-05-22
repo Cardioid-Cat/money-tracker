@@ -497,7 +497,6 @@
                 </div>`;
 
             container.innerHTML = html;
-            // обработчик больше не вешаем здесь – делегирование в attachEventListeners
             renderBlocksStats(allDatesCount);
         }
 
@@ -532,6 +531,7 @@
         function toggleBlocksStats() {
             const container = document.getElementById('blocksStatsContainer');
             const icon = document.getElementById('blocksToggleIcon');
+            if (!container) return;
             if (container.style.display === 'none') {
                 container.style.display = 'block';
                 if (icon) icon.textContent = '▲';
@@ -692,8 +692,8 @@
                 if (deleteBtn) deleteBlock(deleteBtn.getAttribute('data-id'));
             });
 
-            // Делегирование клика по кнопке блоков в статистике
-            document.getElementById('statsContainer').addEventListener('click', function(e) {
+            // ====== ГЛОБАЛЬНЫЙ ОБРАБОТЧИК КЛИКА НА КНОПКУ БЛОКОВ (делегирование на весь документ) ======
+            document.body.addEventListener('click', function(e) {
                 if (e.target.closest('#blocksToggleBtn')) {
                     toggleBlocksStats();
                 }
