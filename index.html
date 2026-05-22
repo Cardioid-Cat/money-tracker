@@ -15,7 +15,7 @@
         .group-row { cursor: pointer; }
         .details-row td { padding: 0; }
         #loginScreen { max-width: 400px; margin: 100px auto; }
-        #blocksToggleBtn { cursor: pointer; }
+        #blocksToggleBtn { display: none; }
     </style>
 </head>
 <body>
@@ -59,6 +59,14 @@
         <div class="container">
             <h3 class="mb-3">📊 Статистика</h3>
             <div id="statsContainer"></div>
+
+            <!-- Кнопка блоков (отдельно от основной статистики) -->
+            <div class="text-center my-3">
+                <button class="btn btn-warning btn-lg" id="blocksToggleBtn">
+                    📦 Показать статистику по блокам <span id="blocksToggleIcon">▼</span>
+                </button>
+            </div>
+
             <div id="blocksStatsContainer" style="display: none;"></div>
 
             <h3 class="mb-3 mt-4">📅 Журнал дней</h3>
@@ -371,6 +379,12 @@
             renderPresetSelect();
             renderBlocksList();
             populateBlockCategoriesSelect();
+
+            // Показать или скрыть кнопку блоков в зависимости от наличия данных
+            const btn = document.getElementById('blocksToggleBtn');
+            if (btn) {
+                btn.style.display = days.length > 0 ? 'inline-block' : 'none';
+            }
         }
 
         // ====== ТАБЛИЦА ДНЕЙ ======
@@ -484,16 +498,8 @@
                     <div class="col-md-6"><div class="card stat-card bg-info text-dark"><div class="card-body"><h6>Средний расход / день</h6><p class="fs-5 fw-bold">${avgExpenseAll.toFixed(2)} ₽</p></div></div></div>
                 </div>
                 <div class="row g-3">
-                    <div class="col-md-4"><div class="card stat-card bg-success text-white"><div class="card-body"><h6>Средний доход / раб. день</h6><p class="fs-5 fw-bold">${avgIncomeWorking.toFixed(2)} ₽</p></div></div></div>
-                    <div class="col-md-4"><div class="card stat-card bg-secondary text-white"><div class="card-body"><h6>Рабочих дней</h6><p class="fs-5 fw-bold">${workingDatesCount} из ${allDatesCount}</p></div></div></div>
-                    <div class="col-md-4">
-                        <div class="card stat-card bg-warning text-dark" id="blocksToggleBtn">
-                            <div class="card-body text-center">
-                                <h6>📦 Блоки <span id="blocksToggleIcon">▼</span></h6>
-                                <p class="fs-6 fw-bold">Показать статистику по блокам</p>
-                            </div>
-                        </div>
-                    </div>
+                    <div class="col-md-6"><div class="card stat-card bg-success text-white"><div class="card-body"><h6>Средний доход / раб. день</h6><p class="fs-5 fw-bold">${avgIncomeWorking.toFixed(2)} ₽</p></div></div></div>
+                    <div class="col-md-6"><div class="card stat-card bg-secondary text-white"><div class="card-body"><h6>Рабочих дней</h6><p class="fs-5 fw-bold">${workingDatesCount} из ${allDatesCount}</p></div></div></div>
                 </div>`;
 
             container.innerHTML = html;
@@ -532,7 +538,7 @@
             const container = document.getElementById('blocksStatsContainer');
             const icon = document.getElementById('blocksToggleIcon');
             if (!container) return;
-            if (container.style.display === 'none') {
+            if (container.style.display === 'none' || container.style.display === '') {
                 container.style.display = 'block';
                 if (icon) icon.textContent = '▲';
             } else {
@@ -692,12 +698,8 @@
                 if (deleteBtn) deleteBlock(deleteBtn.getAttribute('data-id'));
             });
 
-            // ====== ГЛОБАЛЬНЫЙ ОБРАБОТЧИК КЛИКА НА КНОПКУ БЛОКОВ (делегирование на весь документ) ======
-            document.body.addEventListener('click', function(e) {
-                if (e.target.closest('#blocksToggleBtn')) {
-                    toggleBlocksStats();
-                }
-            });
+            // Кнопка показа блоков
+            document.getElementById('blocksToggleBtn').addEventListener('click', toggleBlocksStats);
         }
 
         // ====== ЛОГИКА ТРАТ ======
