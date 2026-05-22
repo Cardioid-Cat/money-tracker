@@ -60,7 +60,7 @@
             <h3 class="mb-3">📊 Статистика</h3>
             <div id="statsContainer"></div>
 
-            <!-- Кнопка блоков (отдельно от основной статистики) -->
+            <!-- Кнопка блоков (отдельно) -->
             <div class="text-center my-3">
                 <button class="btn btn-warning btn-lg" id="blocksToggleBtn">
                     📦 Показать статистику по блокам <span id="blocksToggleIcon">▼</span>
@@ -195,7 +195,7 @@
         // ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
         let days = [];
         let presets = [];
-        let blocks = [];
+        let blocks = [];            // { id, name, categories: [имя_категории, ...] }
         const DEFAULT_CATEGORY = 'Еда и прочее';
         let authToken = null;
         let currentUser = null;
@@ -380,7 +380,6 @@
             renderBlocksList();
             populateBlockCategoriesSelect();
 
-            // Показать или скрыть кнопку блоков в зависимости от наличия данных
             const btn = document.getElementById('blocksToggleBtn');
             if (btn) {
                 btn.style.display = days.length > 0 ? 'inline-block' : 'none';
@@ -510,6 +509,7 @@
             const container = document.getElementById('blocksStatsContainer');
             let html = '';
             blocks.forEach(block => {
+                // Фильтруем по названиям категорий (block.categories — массив строк)
                 const filtered = days.filter(d => block.categories.includes(d.category));
                 if (filtered.length === 0) return;
                 const blockIncome = filtered.reduce((s, d) => s + (Number(d.income) || 0), 0);
@@ -590,10 +590,7 @@
                 return;
             }
             blocks.forEach(block => {
-                const catNames = block.categories.map(id => {
-                    const p = presets.find(p => p.id === id);
-                    return p ? p.name : id;
-                }).join(', ');
+                const catNames = block.categories.join(', ');
                 const div = document.createElement('div');
                 div.className = 'list-group-item d-flex justify-content-between align-items-center';
                 div.innerHTML = `<span><strong>${block.name}</strong> <br><small class="text-muted">Категории: ${catNames}</small></span>
@@ -608,9 +605,10 @@
         function populateBlockCategoriesSelect() {
             const select = document.getElementById('blockCategories');
             select.innerHTML = '';
+            // Теперь value = название категории
             presets.forEach(p => {
                 const opt = document.createElement('option');
-                opt.value = p.id;
+                opt.value = p.name;
                 opt.textContent = p.name;
                 select.appendChild(opt);
             });
@@ -674,7 +672,6 @@
                 checkDateType(editIndex >= 0 ? editIndex : -1);
             });
 
-            // Делегирование кликов в таблице дней
             document.getElementById('daysTableBody').addEventListener('click', function(e) {
                 const editBtn = e.target.closest('.edit-day-btn');
                 const deleteBtn = e.target.closest('.delete-day-btn');
@@ -682,7 +679,6 @@
                 if (deleteBtn) deleteDay(deleteBtn.getAttribute('data-index'));
             });
 
-            // Делегирование кликов в списке категорий
             document.getElementById('presetsList').addEventListener('click', function(e) {
                 const editBtn = e.target.closest('.edit-preset-btn');
                 const deleteBtn = e.target.closest('.delete-preset-btn');
@@ -690,7 +686,6 @@
                 if (deleteBtn) deletePreset(deleteBtn.getAttribute('data-id'));
             });
 
-            // Делегирование кликов в списке блоков
             document.getElementById('blocksList').addEventListener('click', function(e) {
                 const editBtn = e.target.closest('.edit-block-btn');
                 const deleteBtn = e.target.closest('.delete-block-btn');
@@ -831,18 +826,19 @@
             const name = document.getElementById('blockName').value.trim();
             if (!name) { alert('Введите название блока!'); return; }
             const select = document.getElementById('blockCategories');
-            const selectedIds = Array.from(select.selectedOptions).map(opt => opt.value);
-            if (selectedIds.length === 0) { alert('Выберите хотя бы одну категорию!'); return; }
+            // Получаем выбранные названия категорий (value теперь — имя)
+            const selectedNames = Array.from(select.selectedOptions).map(opt => opt.value);
+            if (selectedNames.length === 0) { alert('Выберите хотя бы одну категорию!'); return; }
             const editId = document.getElementById('editBlockId').value;
 
             if (editId) {
                 const block = blocks.find(b => b.id === editId);
                 if (block) {
                     block.name = name;
-                    block.categories = selectedIds;
+                    block.categories = selectedNames;
                 }
             } else {
-                blocks.push({ id: generateId(), name, categories: selectedIds });
+                blocks.push({ id: generateId(), name, categories: selectedNames });
             }
             await saveData();
             renderAll();
