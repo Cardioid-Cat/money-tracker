@@ -521,12 +521,12 @@
                 const blockExpense = filtered.reduce((s, d) => s + (Number(d.expense) || 0), 0);
                 const uniqueDates = new Set(filtered.map(d => d.date));
                 const blockDaysCount = uniqueDates.size;
-                // Средние теперь считаются относительно ВСЕХ дней, а не только дней с категорией
+                // Средние относительно ВСЕХ дней
                 const blockAvgIncome = allDatesCount > 0 ? blockIncome / allDatesCount : 0;
                 const blockAvgExpense = allDatesCount > 0 ? blockExpense / allDatesCount : 0;
 
                 html += `
-                <h5 class="mt-4">📦 ${block.name}</h5>
+                <h5 class="mt-4">📦 ${block.name} <small class="text-muted">(Встречено в ${blockDaysCount} из ${allDatesCount} дней)</small></h5>
                 <div class="row g-3 mb-3">
                     <div class="col-md-6"><div class="card stat-card bg-success text-white"><div class="card-body"><h6>Доход</h6><p class="fs-5 fw-bold">${blockIncome.toFixed(2)} ₽</p></div></div></div>
                     <div class="col-md-6"><div class="card stat-card bg-danger text-white"><div class="card-body"><h6>Расход</h6><p class="fs-5 fw-bold">${blockExpense.toFixed(2)} ₽</p></div></div></div>
@@ -534,9 +534,6 @@
                 <div class="row g-3 mb-3">
                     <div class="col-md-6"><div class="card stat-card bg-info text-dark"><div class="card-body"><h6>Средний доход / день</h6><p class="fs-5 fw-bold">${blockAvgIncome.toFixed(2)} ₽</p></div></div></div>
                     <div class="col-md-6"><div class="card stat-card bg-info text-dark"><div class="card-body"><h6>Средний расход / день</h6><p class="fs-5 fw-bold">${blockAvgExpense.toFixed(2)} ₽</p></div></div></div>
-                </div>
-                <div class="row g-3">
-                    <div class="col-md-6"><div class="card stat-card bg-secondary text-white"><div class="card-body"><h6>Дней</h6><p class="fs-5 fw-bold">${blockDaysCount} из ${allDatesCount}</p></div></div></div>
                 </div>`;
             });
             container.innerHTML = html;
