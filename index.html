@@ -16,13 +16,9 @@
         .details-row td { padding: 0; }
         #loginScreen { max-width: 400px; margin: 100px auto; }
         #blocksToggleBtn { display: none; }
-        /* Стили для чекбоксов категорий в блоке */
         .category-checkbox-item {
             cursor: pointer;
             user-select: none;
-        }
-        .category-checkbox-item .form-check-input {
-            margin-right: 0.5rem;
         }
     </style>
 </head>
@@ -112,8 +108,11 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Категория</label>
-                            <select class="form-select" id="presetSelect"></select>
+                            <label class="form-label">Категории</label>
+                            <div id="dayCategoriesContainer" class="list-group">
+                                <!-- чекбоксы категорий -->
+                            </div>
+                            <small class="text-muted">Нажмите на название, чтобы выбрать (можно несколько)</small>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Доход (₽)</label>
@@ -182,7 +181,7 @@
                         <div class="mb-2">
                             <label class="form-label">Категории в блоке</label>
                             <div id="blockCategoriesContainer" class="list-group">
-                                <!-- Чекбоксы будут добавлены динамически -->
+                                <!-- чекбоксы -->
                             </div>
                             <small class="text-muted">Нажмите на название, чтобы выбрать</small>
                         </div>
@@ -200,9 +199,9 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
-        let days = [];
-        let presets = [];
-        let blocks = [];            // { id, name, categories: [имя_категории, ...] }
+        let days = [];           // { date, type, categories: [имя, ...], income, expense }
+        let presets = [];       // { id, name }
+        let blocks = [];        // { id, name, categories: [имя, ...] }
         const DEFAULT_CATEGORY = 'Еда и прочее';
         let authToken = null;
         let currentUser = null;
@@ -296,6 +295,18 @@
                     presets = data.presets || [];
                     blocks = data.blocks || [];
                     console.log('📥 Данные загружены из облака');
+
+                    // Миграция старых записей: одиночная category -> массив categories
+                    days = days.map(day => {
+                        if (!day.categories && day.category) {
+                            return { ...day, categories: [day.category] };
+                        }
+                        if (!day.categories) {
+                            return { ...day, categories: [] };
+                        }
+                        return day;
+                    });
+
                     // Конвертация старых блоков (если в категориях id, а не имена)
                     blocks.forEach(block => {
                         block.categories = block.categories.map(cat => {
@@ -303,6 +314,7 @@
                             return preset ? preset.name : cat;
                         });
                     });
+
                     localStorage.setItem('salary_diary_days', JSON.stringify(days));
                     localStorage.setItem('salary_diary_presets', JSON.stringify(presets));
                     localStorage.setItem('salary_diary_blocks', JSON.stringify(blocks));
@@ -314,6 +326,14 @@
                     days = savedDays ? JSON.parse(savedDays) : [];
                     presets = savedPresets ? JSON.parse(savedPresets) : [];
                     blocks = savedBlocks ? JSON.parse(savedBlocks) : [];
+
+                    // Миграция локальных данных
+                    days = days.map(day => {
+                        if (!day.categories && day.category) return { ...day, categories: [day.category] };
+                        if (!day.categories) return { ...day, categories: [] };
+                        return day;
+                    });
+
                     if (days.length > 0 || presets.length > 0 || blocks.length > 0) {
                         console.log('📤 Отправляем локальные данные в облако...');
                         await saveData();
@@ -327,6 +347,12 @@
                 days = savedDays ? JSON.parse(savedDays) : [];
                 presets = savedPresets ? JSON.parse(savedPresets) : [];
                 blocks = savedBlocks ? JSON.parse(savedBlocks) : [];
+
+                days = days.map(day => {
+                    if (!day.categories && day.category) return { ...day, categories: [day.category] };
+                    if (!day.categories) return { ...day, categories: [] };
+                    return day;
+                });
             }
         }
 
@@ -393,6 +419,7 @@
             renderPresetSelect();
             renderBlocksList();
             populateBlockCategoriesCheckboxes();
+            populateDayCategoriesCheckboxes(); // для формы добавления трат
 
             const btn = document.getElementById('blocksToggleBtn');
             if (btn) {
@@ -440,11 +467,12 @@
                 detailsRow.innerHTML = `<td colspan="5" class="p-0">
                     <div class="p-2 bg-light">
                         <table class="table table-sm mb-0">
-                            <thead><tr><th>Категория</th><th>Доход</th><th>Расход</th><th></th></tr></thead>
+                            <thead><tr><th>Категории</th><th>Доход</th><th>Расход</th><th></th></tr></thead>
                             <tbody>${group.map(day => {
                                 const realIndex = days.indexOf(day);
+                                const catNames = (day.categories && day.categories.length > 0) ? day.categories.join(', ') : '—';
                                 return `<tr>
-                                    <td>${day.category}</td>
+                                    <td>${catNames}</td>
                                     <td class="text-success">${day.income.toFixed(2)} ₽</td>
                                     <td class="text-danger">${day.expense.toFixed(2)} ₽</td>
                                     <td>
@@ -523,7 +551,10 @@
             const container = document.getElementById('blocksStatsContainer');
             let html = '';
             blocks.forEach(block => {
-                const filtered = days.filter(d => block.categories.includes(d.category));
+                // Трата попадает в блок, если хотя бы одна её категория есть в block.categories
+                const filtered = days.filter(d =>
+                    d.categories && d.categories.some(cat => block.categories.includes(cat))
+                );
                 if (filtered.length === 0) return;
                 const blockIncome = filtered.reduce((s, d) => s + (Number(d.income) || 0), 0);
                 const blockExpense = filtered.reduce((s, d) => s + (Number(d.expense) || 0), 0);
@@ -580,7 +611,9 @@
         }
 
         function renderPresetSelect() {
+            // Больше не используется, оставим для совместимости, но скроем
             const select = document.getElementById('presetSelect');
+            if (!select) return;
             select.innerHTML = '';
             presets.forEach(p => {
                 const opt = document.createElement('option');
@@ -588,9 +621,6 @@
                 opt.textContent = p.name;
                 select.appendChild(opt);
             });
-            const defaultPreset = presets.find(p => p.name === DEFAULT_CATEGORY);
-            if (defaultPreset) select.value = defaultPreset.id;
-            else if (presets.length > 0) select.value = presets[0].id;
         }
 
         // ====== БЛОКИ (с чекбоксами) ======
@@ -614,7 +644,6 @@
             });
         }
 
-        // Заполняем контейнер чекбоксами для выбора категорий
         function populateBlockCategoriesCheckboxes() {
             const container = document.getElementById('blockCategoriesContainer');
             container.innerHTML = '';
@@ -634,13 +663,11 @@
             });
         }
 
-        // Получить массив выбранных категорий из чекбоксов
         function getSelectedBlockCategories() {
             const checkboxes = document.querySelectorAll('#blockCategoriesContainer input[type="checkbox"]:checked');
             return Array.from(checkboxes).map(cb => cb.value);
         }
 
-        // Отметить чекбоксы в соответствии с массивом категорий
         function setSelectedBlockCategories(categories) {
             const checkboxes = document.querySelectorAll('#blockCategoriesContainer input[type="checkbox"]');
             checkboxes.forEach(cb => {
@@ -648,9 +675,46 @@
             });
         }
 
-        // Сбросить все чекбоксы
         function clearBlockCategoryCheckboxes() {
             const checkboxes = document.querySelectorAll('#blockCategoriesContainer input[type="checkbox"]');
+            checkboxes.forEach(cb => { cb.checked = false; });
+        }
+
+        // ====== КАТЕГОРИИ ДНЯ (ЧЕКБОКСЫ) ======
+        function populateDayCategoriesCheckboxes() {
+            const container = document.getElementById('dayCategoriesContainer');
+            if (!container) return;
+            container.innerHTML = '';
+            if (presets.length === 0) {
+                container.innerHTML = '<div class="text-muted">Нет категорий</div>';
+                return;
+            }
+            presets.forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'list-group-item category-checkbox-item';
+                div.innerHTML = `
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="${p.name}" id="dayCat_${p.id}">
+                        <label class="form-check-label" for="dayCat_${p.id}">${p.name}</label>
+                    </div>`;
+                container.appendChild(div);
+            });
+        }
+
+        function getSelectedDayCategories() {
+            const checkboxes = document.querySelectorAll('#dayCategoriesContainer input[type="checkbox"]:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+
+        function setSelectedDayCategories(categories) {
+            const checkboxes = document.querySelectorAll('#dayCategoriesContainer input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = categories.includes(cb.value);
+            });
+        }
+
+        function clearDayCategoryCheckboxes() {
+            const checkboxes = document.querySelectorAll('#dayCategoriesContainer input[type="checkbox"]');
             checkboxes.forEach(cb => { cb.checked = false; });
         }
 
@@ -733,7 +797,6 @@
                 if (deleteBtn) deleteBlock(deleteBtn.getAttribute('data-id'));
             });
 
-            // Кнопка показа блоков
             document.getElementById('blocksToggleBtn').addEventListener('click', toggleBlocksStats);
         }
 
@@ -743,9 +806,11 @@
             if (!dateInput) { alert('Выберите дату!'); return; }
             const date = formatDate(dateInput);
             const typeSelect = document.getElementById('dayType');
-            const presetId = document.getElementById('presetSelect').value;
-            const categoryPreset = presets.find(p => p.id === presetId);
-            const category = categoryPreset ? categoryPreset.name : '';
+            const selectedCategories = getSelectedDayCategories();
+            if (selectedCategories.length === 0) {
+                alert('Выберите хотя бы одну категорию!');
+                return;
+            }
             const income = parseFloat(document.getElementById('dayIncome').value) || 0;
             const expense = parseFloat(document.getElementById('dayExpense').value) || 0;
             const editIndex = parseInt(document.getElementById('editDayIndex').value);
@@ -755,7 +820,13 @@
                 if (existing) typeSelect.value = existing.type;
             }
 
-            const dayData = { date, type: typeSelect.value, category, income, expense };
+            const dayData = {
+                date,
+                type: typeSelect.value,
+                categories: selectedCategories,
+                income,
+                expense
+            };
 
             if (editIndex >= 0 && editIndex < days.length) {
                 days[editIndex] = dayData;
@@ -775,8 +846,11 @@
             document.getElementById('editDayIndex').value = index;
             document.getElementById('dayDate').value = toDateInputValue(day.date);
             document.getElementById('dayType').value = day.type;
-            const preset = presets.find(p => p.name === day.category);
-            document.getElementById('presetSelect').value = preset ? preset.id : (presets.length > 0 ? presets[0].id : '');
+            // устанавливаем категории
+            clearDayCategoryCheckboxes();
+            if (day.categories && day.categories.length > 0) {
+                setSelectedDayCategories(day.categories);
+            }
             document.getElementById('dayIncome').value = day.income;
             document.getElementById('dayExpense').value = day.expense;
             document.getElementById('dayModalTitle').textContent = 'Редактировать трату';
@@ -796,7 +870,13 @@
             document.getElementById('editDayIndex').value = -1;
             document.getElementById('dayForm').reset();
             document.getElementById('dayDate').value = new Date().toISOString().split('T')[0];
-            renderPresetSelect();
+            clearDayCategoryCheckboxes();
+            // отметить категорию по умолчанию «Еда и прочее», если она есть
+            const defaultPreset = presets.find(p => p.name === DEFAULT_CATEGORY);
+            if (defaultPreset) {
+                const cb = document.getElementById(`dayCat_${defaultPreset.id}`);
+                if (cb) cb.checked = true;
+            }
             document.getElementById('dayModalTitle').textContent = 'Добавить траты';
             checkDateType(-1);
         }
@@ -822,7 +902,15 @@
                 if (preset) {
                     const oldName = preset.name;
                     preset.name = name;
-                    days.forEach(day => { if (day.category === oldName) day.category = name; });
+                    // Обновляем названия категорий в днях и блоках
+                    days.forEach(day => {
+                        if (day.categories) {
+                            day.categories = day.categories.map(cat => cat === oldName ? name : cat);
+                        }
+                    });
+                    blocks.forEach(block => {
+                        block.categories = block.categories.map(cat => cat === oldName ? name : cat);
+                    });
                 }
             } else {
                 presets.push({ id: generateId(), name });
@@ -841,7 +929,20 @@
         }
 
         async function deletePreset(id) {
-            if (confirm('Удалить категорию?')) {
+            if (confirm('Удалить категорию? Она исчезнет из записей и блоков.')) {
+                const preset = presets.find(p => p.id === id);
+                if (preset) {
+                    const name = preset.name;
+                    // Удаляем категорию из дней и блоков
+                    days.forEach(day => {
+                        if (day.categories) {
+                            day.categories = day.categories.filter(cat => cat !== name);
+                        }
+                    });
+                    blocks.forEach(block => {
+                        block.categories = block.categories.filter(cat => cat !== name);
+                    });
+                }
                 presets = presets.filter(p => p.id !== id);
                 await saveData();
                 renderAll();
@@ -888,7 +989,6 @@
             if (!block) return;
             document.getElementById('editBlockId').value = block.id;
             document.getElementById('blockName').value = block.name;
-            // Отмечаем чекбоксы выбранных категорий
             clearBlockCategoryCheckboxes();
             setSelectedBlockCategories(block.categories);
             document.getElementById('addBlockFormContainer').style.display = 'block';
