@@ -60,7 +60,6 @@
             <h3 class="mb-3">📊 Статистика</h3>
             <div id="statsContainer"></div>
 
-            <!-- Кнопка блоков (отдельно) -->
             <div class="text-center my-3">
                 <button class="btn btn-warning btn-lg" id="blocksToggleBtn">
                     📦 Показать статистику по блокам <span id="blocksToggleIcon">▼</span>
@@ -289,6 +288,13 @@
                     presets = data.presets || [];
                     blocks = data.blocks || [];
                     console.log('📥 Данные загружены из облака');
+                    // Конвертация старых блоков (если в категориях id, а не имена)
+                    blocks.forEach(block => {
+                        block.categories = block.categories.map(cat => {
+                            const preset = presets.find(p => p.id === cat);
+                            return preset ? preset.name : cat;
+                        });
+                    });
                     localStorage.setItem('salary_diary_days', JSON.stringify(days));
                     localStorage.setItem('salary_diary_presets', JSON.stringify(presets));
                     localStorage.setItem('salary_diary_blocks', JSON.stringify(blocks));
@@ -509,26 +515,28 @@
             const container = document.getElementById('blocksStatsContainer');
             let html = '';
             blocks.forEach(block => {
-                // Фильтруем по названиям категорий (block.categories — массив строк)
                 const filtered = days.filter(d => block.categories.includes(d.category));
                 if (filtered.length === 0) return;
                 const blockIncome = filtered.reduce((s, d) => s + (Number(d.income) || 0), 0);
                 const blockExpense = filtered.reduce((s, d) => s + (Number(d.expense) || 0), 0);
                 const uniqueDates = new Set(filtered.map(d => d.date));
                 const blockDaysCount = uniqueDates.size;
-                const blockAvgIncome = blockDaysCount > 0 ? blockIncome / blockDaysCount : 0;
-                const blockAvgExpense = blockDaysCount > 0 ? blockExpense / blockDaysCount : 0;
+                // Средние теперь считаются относительно ВСЕХ дней, а не только дней с категорией
+                const blockAvgIncome = allDatesCount > 0 ? blockIncome / allDatesCount : 0;
+                const blockAvgExpense = allDatesCount > 0 ? blockExpense / allDatesCount : 0;
 
                 html += `
                 <h5 class="mt-4">📦 ${block.name}</h5>
                 <div class="row g-3 mb-3">
-                    <div class="col-md-4"><div class="card stat-card bg-success text-white"><div class="card-body"><h6>Доход</h6><p class="fs-5 fw-bold">${blockIncome.toFixed(2)} ₽</p></div></div></div>
-                    <div class="col-md-4"><div class="card stat-card bg-danger text-white"><div class="card-body"><h6>Расход</h6><p class="fs-5 fw-bold">${blockExpense.toFixed(2)} ₽</p></div></div></div>
-                    <div class="col-md-4"><div class="card stat-card bg-info text-dark"><div class="card-body"><h6>Средний доход / день</h6><p class="fs-5 fw-bold">${blockAvgIncome.toFixed(2)} ₽</p></div></div></div>
+                    <div class="col-md-6"><div class="card stat-card bg-success text-white"><div class="card-body"><h6>Доход</h6><p class="fs-5 fw-bold">${blockIncome.toFixed(2)} ₽</p></div></div></div>
+                    <div class="col-md-6"><div class="card stat-card bg-danger text-white"><div class="card-body"><h6>Расход</h6><p class="fs-5 fw-bold">${blockExpense.toFixed(2)} ₽</p></div></div></div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6"><div class="card stat-card bg-info text-dark"><div class="card-body"><h6>Средний доход / день</h6><p class="fs-5 fw-bold">${blockAvgIncome.toFixed(2)} ₽</p></div></div></div>
+                    <div class="col-md-6"><div class="card stat-card bg-info text-dark"><div class="card-body"><h6>Средний расход / день</h6><p class="fs-5 fw-bold">${blockAvgExpense.toFixed(2)} ₽</p></div></div></div>
                 </div>
                 <div class="row g-3">
-                    <div class="col-md-4"><div class="card stat-card bg-info text-dark"><div class="card-body"><h6>Средний расход / день</h6><p class="fs-5 fw-bold">${blockAvgExpense.toFixed(2)} ₽</p></div></div></div>
-                    <div class="col-md-4"><div class="card stat-card bg-secondary text-white"><div class="card-body"><h6>Дней</h6><p class="fs-5 fw-bold">${blockDaysCount} из ${allDatesCount}</p></div></div></div>
+                    <div class="col-md-6"><div class="card stat-card bg-secondary text-white"><div class="card-body"><h6>Дней</h6><p class="fs-5 fw-bold">${blockDaysCount} из ${allDatesCount}</p></div></div></div>
                 </div>`;
             });
             container.innerHTML = html;
@@ -605,7 +613,6 @@
         function populateBlockCategoriesSelect() {
             const select = document.getElementById('blockCategories');
             select.innerHTML = '';
-            // Теперь value = название категории
             presets.forEach(p => {
                 const opt = document.createElement('option');
                 opt.value = p.name;
@@ -826,7 +833,6 @@
             const name = document.getElementById('blockName').value.trim();
             if (!name) { alert('Введите название блока!'); return; }
             const select = document.getElementById('blockCategories');
-            // Получаем выбранные названия категорий (value теперь — имя)
             const selectedNames = Array.from(select.selectedOptions).map(opt => opt.value);
             if (selectedNames.length === 0) { alert('Выберите хотя бы одну категорию!'); return; }
             const editId = document.getElementById('editBlockId').value;
