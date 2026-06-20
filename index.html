@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Дневник зарплаты</title>
+    <title>Дневник финансов</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background-color: #f8f9fa; }
@@ -20,6 +20,17 @@
             cursor: pointer;
             user-select: none;
         }
+        .period-compare .col-period {
+            border-left: 2px dashed #ccc;
+            padding-left: 20px;
+        }
+        @media (max-width: 767px) {
+            .period-compare .col-period {
+                border-left: none;
+                padding-left: 15px;
+                margin-top: 20px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -27,7 +38,7 @@
     <div id="loginScreen" class="container" style="display: none;">
         <div class="card shadow">
             <div class="card-body">
-                <h3 class="card-title text-center mb-4">🔐 Вход в дневник</h3>
+                <h3 class="card-title text-center mb-4">🔐 Вход в дневник финансов</h3>
                 <form id="loginForm">
                     <div class="mb-3">
                         <label class="form-label">Логин</label>
@@ -49,7 +60,7 @@
     <div id="mainApp" style="display: none;">
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
             <div class="container">
-                <span class="navbar-brand">💰 Дневник зарплаты</span>
+                <span class="navbar-brand">📊 Дневник финансов</span>
                 <div class="navbar-nav ms-auto">
                     <span class="navbar-text me-3" id="currentUserDisplay"></span>
                     <button class="btn btn-outline-light me-2" data-bs-toggle="modal" data-bs-target="#addPresetModal">⚡ Категории</button>
@@ -61,6 +72,27 @@
         </nav>
 
         <div class="container">
+            <!-- Выбор периода -->
+            <div class="card mb-4 p-3 shadow-sm">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label">📅 Период с</label>
+                        <input type="date" class="form-control" id="periodStart">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">📅 Период по</label>
+                        <input type="date" class="form-control" id="periodEnd">
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-primary w-100" id="applyPeriodBtn">Показать</button>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-outline-secondary w-100" id="resetPeriodBtn">Сбросить</button>
+                    </div>
+                </div>
+                <div id="periodError" class="text-danger small mt-2" style="display:none;"></div>
+            </div>
+
             <h3 class="mb-3">📊 Статистика</h3>
             <div id="statsContainer"></div>
 
@@ -70,7 +102,9 @@
                 </button>
             </div>
 
-            <div id="blocksStatsContainer" style="display: none;"></div>
+            <div id="blocksStatsContainer" style="display: none;">
+                <!-- контейнеры для блоков заполняются динамически -->
+            </div>
 
             <h3 class="mb-3 mt-4">📅 Журнал дней</h3>
             <div class="table-responsive">
@@ -85,7 +119,7 @@
         </div>
     </div>
 
-    <!-- Модальные окна -->
+    <!-- Модальные окна (без изменений) -->
     <div class="modal fade" id="addDayModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -109,9 +143,7 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Категории</label>
-                            <div id="dayCategoriesContainer" class="list-group">
-                                <!-- чекбоксы категорий -->
-                            </div>
+                            <div id="dayCategoriesContainer" class="list-group"></div>
                             <small class="text-muted">Нажмите на название, чтобы выбрать (можно несколько)</small>
                         </div>
                         <div class="mb-3">
@@ -160,7 +192,6 @@
         </div>
     </div>
 
-    <!-- Модальное окно Блоков -->
     <div class="modal fade" id="blocksModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -180,9 +211,7 @@
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Категории в блоке</label>
-                            <div id="blockCategoriesContainer" class="list-group">
-                                <!-- чекбоксы -->
-                            </div>
+                            <div id="blockCategoriesContainer" class="list-group"></div>
                             <small class="text-muted">Нажмите на название, чтобы выбрать</small>
                         </div>
                         <button class="btn btn-primary btn-sm" id="saveBlockBtn">Сохранить</button>
@@ -205,8 +234,11 @@
         const DEFAULT_CATEGORY = 'Еда и прочее';
         let authToken = null;
         let currentUser = null;
+        // Период (null – не выбран)
+        let periodStart = null;   // строка вида yyyy-mm-dd
+        let periodEnd = null;
 
-        // ========== АВТОРИЗАЦИЯ ==========
+        // ========== АВТОРИЗАЦИЯ (без изменений) ==========
         async function login(login, password) {
             const res = await fetch('/api/login', {
                 method: 'POST',
@@ -229,6 +261,11 @@
             localStorage.removeItem('auth_user');
             document.getElementById('loginScreen').style.display = 'block';
             document.getElementById('mainApp').style.display = 'none';
+            // сброс периода
+            periodStart = null;
+            periodEnd = null;
+            document.getElementById('periodStart').value = '';
+            document.getElementById('periodEnd').value = '';
         }
 
         async function checkSession() {
@@ -250,7 +287,7 @@
             return false;
         }
 
-        // ========== API С АВТОРИЗАЦИЕЙ ==========
+        // ========== API (без изменений) ==========
         async function saveData() {
             const data = { days, presets, blocks };
             if (!authToken) throw new Error('Не авторизован');
@@ -296,7 +333,7 @@
                     blocks = data.blocks || [];
                     console.log('📥 Данные загружены из облака');
 
-                    // Миграция старых записей: одиночная category -> массив categories
+                    // Миграция старых записей
                     days = days.map(day => {
                         if (!day.categories && day.category) {
                             return { ...day, categories: [day.category] };
@@ -307,7 +344,7 @@
                         return day;
                     });
 
-                    // Конвертация старых блоков (если в категориях id, а не имена)
+                    // Конвертация старых блоков
                     blocks.forEach(block => {
                         block.categories = block.categories.map(cat => {
                             const preset = presets.find(p => p.id === cat);
@@ -327,7 +364,6 @@
                     presets = savedPresets ? JSON.parse(savedPresets) : [];
                     blocks = savedBlocks ? JSON.parse(savedBlocks) : [];
 
-                    // Миграция локальных данных
                     days = days.map(day => {
                         if (!day.categories && day.category) return { ...day, categories: [day.category] };
                         if (!day.categories) return { ...day, categories: [] };
@@ -414,12 +450,12 @@
 
         function renderAll() {
             renderDaysTable();
-            renderStats();
+            renderStats();   // теперь учитывает periodStart/periodEnd
             renderPresetsList();
             renderPresetSelect();
             renderBlocksList();
             populateBlockCategoriesCheckboxes();
-            populateDayCategoriesCheckboxes(); // для формы добавления трат
+            populateDayCategoriesCheckboxes();
 
             const btn = document.getElementById('blocksToggleBtn');
             if (btn) {
@@ -427,7 +463,7 @@
             }
         }
 
-        // ====== ТАБЛИЦА ДНЕЙ ======
+        // ====== ТАБЛИЦА ДНЕЙ (без изменений) ======
         function renderDaysTable() {
             const tbody = document.getElementById('daysTableBody');
             const noMsg = document.getElementById('noDaysMessage');
@@ -499,17 +535,64 @@
             });
         }
 
-        // ====== СТАТИСТИКА ======
+        // ====== СТАТИСТИКА (ОБНОВЛЁННАЯ) ======
         function renderStats() {
             const container = document.getElementById('statsContainer');
             if (days.length === 0) {
                 container.innerHTML = '<div class="text-muted">Нет данных для статистики</div>';
+                document.getElementById('blocksStatsContainer').style.display = 'none';
+                document.getElementById('blocksToggleBtn').style.display = 'none';
                 return;
             }
 
+            // Определяем, активен ли период
+            const periodActive = periodStart && periodEnd;
+            let daysForPeriod = [];
+            if (periodActive) {
+                const startDate = parseDateFull(periodStart);
+                const endDate = parseDateFull(periodEnd);
+                // Фильтр по дате (включая границы)
+                daysForPeriod = days.filter(d => {
+                    const dDate = parseDate(d.date);
+                    return dDate >= startDate && dDate <= endDate;
+                });
+            }
+
+            // Строим HTML
+            if (!periodActive) {
+                // Обычный режим – одна колонка "За всё время"
+                container.innerHTML = generateStatsBlock(days, 'За всё время', false);
+            } else {
+                // Режим сравнения – две колонки
+                const allHtml = generateStatsBlock(days, 'За всё время', false);
+                let periodHtml;
+                if (daysForPeriod.length === 0) {
+                    periodHtml = '<div class="text-muted">Нет записей за выбранный период</div>';
+                } else {
+                    periodHtml = generateStatsBlock(daysForPeriod, 'За период', true);
+                }
+                container.innerHTML = `
+                    <div class="row period-compare">
+                        <div class="col-md-6">${allHtml}</div>
+                        <div class="col-md-6 col-period">${periodHtml}</div>
+                    </div>`;
+            }
+
+            // Рендер блоков
+            renderBlocksStats(periodActive, daysForPeriod);
+
+            // Управление видимостью кнопки блоков
+            const btn = document.getElementById('blocksToggleBtn');
+            if (btn) btn.style.display = days.length > 0 ? 'inline-block' : 'none';
+        }
+
+        // Вспомогательная: генерация блока статистики (без блоков)
+        function generateStatsBlock(daysSubset, title, isPeriod) {
+            if (daysSubset.length === 0) return '';
+
             let totalIncome = 0, totalExpense = 0;
             const dateMap = new Map();
-            days.forEach(day => {
+            daysSubset.forEach(day => {
                 totalIncome += Number(day.income) || 0;
                 totalExpense += Number(day.expense) || 0;
                 if (!dateMap.has(day.date)) dateMap.set(day.date, new Set());
@@ -518,7 +601,7 @@
 
             const allDatesCount = dateMap.size;
             const workingDatesCount = Array.from(dateMap.values()).filter(types => types.has('working')).length;
-            const workingDaysOps = days.filter(d => d.type === 'working');
+            const workingDaysOps = daysSubset.filter(d => d.type === 'working');
             const totalWorkingIncome = workingDaysOps.reduce((s, d) => s + (Number(d.income) || 0), 0);
             const totalWorkingExpense = workingDaysOps.reduce((s, d) => s + (Number(d.expense) || 0), 0);
 
@@ -528,7 +611,9 @@
             const avgExpenseWorking = workingDatesCount > 0 ? totalWorkingExpense / workingDatesCount : 0;
             const netBalance = totalIncome - totalExpense;
 
-            let html = `
+            const titleHtml = `<h5 class="mb-3">${title} ${isPeriod ? '(выбранный период)' : ''}</h5>`;
+
+            const cardsHtml = `
                 <div class="row g-3 mb-3">
                     <div class="col-md-4"><div class="card stat-card bg-success text-white"><div class="card-body"><h6>Общий доход</h6><p class="fs-5 fw-bold">${totalIncome.toFixed(2)} ₽</p></div></div></div>
                     <div class="col-md-4"><div class="card stat-card bg-danger text-white"><div class="card-body"><h6>Общий расход</h6><p class="fs-5 fw-bold">${totalExpense.toFixed(2)} ₽</p></div></div></div>
@@ -543,16 +628,39 @@
                     <div class="col-md-6"><div class="card stat-card bg-secondary text-white"><div class="card-body"><h6>Рабочих дней</h6><p class="fs-5 fw-bold">${workingDatesCount} из ${allDatesCount}</p></div></div></div>
                 </div>`;
 
-            container.innerHTML = html;
-            renderBlocksStats(allDatesCount);
+            return titleHtml + cardsHtml;
         }
 
-        function renderBlocksStats(allDatesCount) {
+        function renderBlocksStats(periodActive, daysForPeriod) {
             const container = document.getElementById('blocksStatsContainer');
-            let html = '';
+            // Всегда скрываем, если не нажата кнопка "Показать"
+            // Заполняем контейнеры
+            if (!periodActive) {
+                // Обычный режим: только за всё время
+                const allHtml = generateBlocksHtml(days, null);
+                container.innerHTML = `<div id="blocksAllTime">${allHtml}</div><div id="blocksPeriod" style="display:none;"></div>`;
+            } else {
+                const allHtml = generateBlocksHtml(days, 'За всё время');
+                let periodHtml;
+                if (daysForPeriod.length === 0) {
+                    periodHtml = '<div class="text-muted">Нет данных по блокам за период</div>';
+                } else {
+                    periodHtml = generateBlocksHtml(daysForPeriod, 'За период');
+                }
+                container.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6"><div id="blocksAllTime">${allHtml}</div></div>
+                        <div class="col-md-6 col-period"><div id="blocksPeriod">${periodHtml}</div></div>
+                    </div>`;
+            }
+        }
+
+        function generateBlocksHtml(daysSubset, title) {
+            let html = title ? `<h5 class="mt-3">📦 Блоки: ${title}</h5>` : '';
+            const allDatesCount = new Set(daysSubset.map(d => d.date)).size;
+
             blocks.forEach(block => {
-                // Трата попадает в блок, если хотя бы одна её категория есть в block.categories
-                const filtered = days.filter(d =>
+                const filtered = daysSubset.filter(d =>
                     d.categories && d.categories.some(cat => block.categories.includes(cat))
                 );
                 if (filtered.length === 0) return;
@@ -564,7 +672,7 @@
                 const blockAvgExpense = allDatesCount > 0 ? blockExpense / allDatesCount : 0;
 
                 html += `
-                <h5 class="mt-4">📦 ${block.name} <small class="text-muted">(Встречено в ${blockDaysCount} из ${allDatesCount} дней)</small></h5>
+                <h6 class="mt-3">📦 ${block.name} <small class="text-muted">(Встречено в ${blockDaysCount} из ${allDatesCount} дней)</small></h6>
                 <div class="row g-3 mb-3">
                     <div class="col-md-6"><div class="card stat-card bg-success text-white"><div class="card-body"><h6>Доход</h6><p class="fs-5 fw-bold">${blockIncome.toFixed(2)} ₽</p></div></div></div>
                     <div class="col-md-6"><div class="card stat-card bg-danger text-white"><div class="card-body"><h6>Расход</h6><p class="fs-5 fw-bold">${blockExpense.toFixed(2)} ₽</p></div></div></div>
@@ -574,13 +682,12 @@
                     <div class="col-md-6"><div class="card stat-card bg-info text-dark"><div class="card-body"><h6>Средний расход / день</h6><p class="fs-5 fw-bold">${blockAvgExpense.toFixed(2)} ₽</p></div></div></div>
                 </div>`;
             });
-            container.innerHTML = html;
+            return html || '<div class="text-muted">Блоки не найдены</div>';
         }
 
         function toggleBlocksStats() {
             const container = document.getElementById('blocksStatsContainer');
             const icon = document.getElementById('blocksToggleIcon');
-            if (!container) return;
             if (container.style.display === 'none' || container.style.display === '') {
                 container.style.display = 'block';
                 if (icon) icon.textContent = '▲';
@@ -590,7 +697,7 @@
             }
         }
 
-        // ====== КАТЕГОРИИ ======
+        // ====== КАТЕГОРИИ (без изменений) ======
         function renderPresetsList() {
             const list = document.getElementById('presetsList');
             list.innerHTML = '';
@@ -611,7 +718,6 @@
         }
 
         function renderPresetSelect() {
-            // Больше не используется, оставим для совместимости, но скроем
             const select = document.getElementById('presetSelect');
             if (!select) return;
             select.innerHTML = '';
@@ -623,7 +729,7 @@
             });
         }
 
-        // ====== БЛОКИ (с чекбоксами) ======
+        // ====== БЛОКИ (без изменений) ======
         function renderBlocksList() {
             const list = document.getElementById('blocksList');
             list.innerHTML = '';
@@ -680,7 +786,7 @@
             checkboxes.forEach(cb => { cb.checked = false; });
         }
 
-        // ====== КАТЕГОРИИ ДНЯ (ЧЕКБОКСЫ) ======
+        // ====== КАТЕГОРИИ ДНЯ (без изменений) ======
         function populateDayCategoriesCheckboxes() {
             const container = document.getElementById('dayCategoriesContainer');
             if (!container) return;
@@ -725,6 +831,13 @@
             return new Date(parts[2], parts[1] - 1, parts[0]);
         }
 
+        function parseDateFull(dateStr) {
+            // Принимает yyyy-mm-dd
+            const parts = dateStr.split('-');
+            if (parts.length !== 3) return new Date(0);
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        }
+
         function formatDate(dateInput) {
             const parts = dateInput.split('-');
             if (parts.length !== 3) return '01.01.2020';
@@ -760,7 +873,7 @@
             }
         }
 
-        // ====== ОБРАБОТЧИКИ ======
+        // ====== ОБРАБОТЧИКИ (добавлены период и старые) ======
         function attachEventListeners() {
             document.getElementById('saveDayBtn').addEventListener('click', saveDay);
             document.getElementById('showAddPresetFormBtn').addEventListener('click', showAddPresetForm);
@@ -798,9 +911,52 @@
             });
 
             document.getElementById('blocksToggleBtn').addEventListener('click', toggleBlocksStats);
+
+            // Период
+            document.getElementById('applyPeriodBtn').addEventListener('click', applyPeriod);
+            document.getElementById('resetPeriodBtn').addEventListener('click', resetPeriod);
         }
 
-        // ====== ЛОГИКА ТРАТ ======
+        function applyPeriod() {
+            const startInput = document.getElementById('periodStart').value;
+            const endInput = document.getElementById('periodEnd').value;
+            const errorEl = document.getElementById('periodError');
+            errorEl.style.display = 'none';
+
+            if (!startInput || !endInput) {
+                errorEl.textContent = 'Выберите обе даты.';
+                errorEl.style.display = 'block';
+                return;
+            }
+            const startDate = new Date(startInput);
+            const endDate = new Date(endInput);
+            if (startDate > endDate) {
+                errorEl.textContent = 'Дата начала не может быть позже даты окончания.';
+                errorEl.style.display = 'block';
+                return;
+            }
+            periodStart = startInput;
+            periodEnd = endInput;
+            renderStats();
+            // Переключаем видимость кнопки блоков, если данные есть
+            document.getElementById('blocksToggleBtn').style.display = days.length > 0 ? 'inline-block' : 'none';
+            // Сбрасываем видимость blocksStatsContainer, чтобы пользователь нажал кнопку
+            document.getElementById('blocksStatsContainer').style.display = 'none';
+            document.getElementById('blocksToggleIcon').textContent = '▼';
+        }
+
+        function resetPeriod() {
+            document.getElementById('periodStart').value = '';
+            document.getElementById('periodEnd').value = '';
+            periodStart = null;
+            periodEnd = null;
+            document.getElementById('periodError').style.display = 'none';
+            renderStats();
+            document.getElementById('blocksStatsContainer').style.display = 'none';
+            document.getElementById('blocksToggleIcon').textContent = '▼';
+        }
+
+        // ====== ЛОГИКА ТРАТ (без изменений) ======
         async function saveDay() {
             const dateInput = document.getElementById('dayDate').value;
             if (!dateInput) { alert('Выберите дату!'); return; }
@@ -846,7 +1002,6 @@
             document.getElementById('editDayIndex').value = index;
             document.getElementById('dayDate').value = toDateInputValue(day.date);
             document.getElementById('dayType').value = day.type;
-            // устанавливаем категории
             clearDayCategoryCheckboxes();
             if (day.categories && day.categories.length > 0) {
                 setSelectedDayCategories(day.categories);
@@ -871,7 +1026,6 @@
             document.getElementById('dayForm').reset();
             document.getElementById('dayDate').value = new Date().toISOString().split('T')[0];
             clearDayCategoryCheckboxes();
-            // отметить категорию по умолчанию «Еда и прочее», если она есть
             const defaultPreset = presets.find(p => p.name === DEFAULT_CATEGORY);
             if (defaultPreset) {
                 const cb = document.getElementById(`dayCat_${defaultPreset.id}`);
@@ -881,7 +1035,7 @@
             checkDateType(-1);
         }
 
-        // ====== ЛОГИКА КАТЕГОРИЙ ======
+        // ====== ЛОГИКА КАТЕГОРИЙ (без изменений) ======
         function showAddPresetForm() {
             document.getElementById('addPresetFormContainer').style.display = 'block';
             document.getElementById('editPresetId').value = '';
@@ -902,7 +1056,6 @@
                 if (preset) {
                     const oldName = preset.name;
                     preset.name = name;
-                    // Обновляем названия категорий в днях и блоках
                     days.forEach(day => {
                         if (day.categories) {
                             day.categories = day.categories.map(cat => cat === oldName ? name : cat);
@@ -933,7 +1086,6 @@
                 const preset = presets.find(p => p.id === id);
                 if (preset) {
                     const name = preset.name;
-                    // Удаляем категорию из дней и блоков
                     days.forEach(day => {
                         if (day.categories) {
                             day.categories = day.categories.filter(cat => cat !== name);
@@ -950,7 +1102,7 @@
             }
         }
 
-        // ====== ЛОГИКА БЛОКОВ С ЧЕКБОКСАМИ ======
+        // ====== ЛОГИКА БЛОКОВ (без изменений) ======
         function showAddBlockForm() {
             document.getElementById('addBlockFormContainer').style.display = 'block';
             document.getElementById('editBlockId').value = '';
