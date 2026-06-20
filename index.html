@@ -31,6 +31,9 @@
                 margin-top: 20px;
             }
         }
+        .block-dual {
+            margin-bottom: 2rem;
+        }
     </style>
 </head>
 <body>
@@ -103,7 +106,7 @@
             </div>
 
             <div id="blocksStatsContainer" style="display: none;">
-                <!-- контейнеры для блоков заполняются динамически -->
+                <!-- блоки заполняются динамически -->
             </div>
 
             <h3 class="mb-3 mt-4">📅 Журнал дней</h3>
@@ -578,7 +581,7 @@
                     </div>`;
             }
 
-            // Рендер блоков
+            // Рендер блоков (обновлённый)
             renderBlocksStats(periodActive, daysForPeriod);
 
             // Управление видимостью кнопки блоков
@@ -631,58 +634,78 @@
             return titleHtml + cardsHtml;
         }
 
+        // ====== НОВЫЙ РЕНДЕР БЛОКОВ (ПОБЛОЧНОЕ СРАВНЕНИЕ) ======
         function renderBlocksStats(periodActive, daysForPeriod) {
             const container = document.getElementById('blocksStatsContainer');
-            // Всегда скрываем, если не нажата кнопка "Показать"
-            // Заполняем контейнеры
-            if (!periodActive) {
-                // Обычный режим: только за всё время
-                const allHtml = generateBlocksHtml(days, null);
-                container.innerHTML = `<div id="blocksAllTime">${allHtml}</div><div id="blocksPeriod" style="display:none;"></div>`;
-            } else {
-                const allHtml = generateBlocksHtml(days, 'За всё время');
-                let periodHtml;
-                if (daysForPeriod.length === 0) {
-                    periodHtml = '<div class="text-muted">Нет данных по блокам за период</div>';
-                } else {
-                    periodHtml = generateBlocksHtml(daysForPeriod, 'За период');
-                }
-                container.innerHTML = `
-                    <div class="row">
-                        <div class="col-md-6"><div id="blocksAllTime">${allHtml}</div></div>
-                        <div class="col-md-6 col-period"><div id="blocksPeriod">${periodHtml}</div></div>
-                    </div>`;
+            container.innerHTML = '';
+            if (blocks.length === 0) {
+                container.innerHTML = '<div class="text-muted">Нет сохранённых блоков</div>';
+                return;
             }
-        }
-
-        function generateBlocksHtml(daysSubset, title) {
-            let html = title ? `<h5 class="mt-3">📦 Блоки: ${title}</h5>` : '';
-            const allDatesCount = new Set(daysSubset.map(d => d.date)).size;
 
             blocks.forEach(block => {
-                const filtered = daysSubset.filter(d =>
+                // Статистика за всё время
+                const filteredAll = days.filter(d =>
                     d.categories && d.categories.some(cat => block.categories.includes(cat))
                 );
-                if (filtered.length === 0) return;
-                const blockIncome = filtered.reduce((s, d) => s + (Number(d.income) || 0), 0);
-                const blockExpense = filtered.reduce((s, d) => s + (Number(d.expense) || 0), 0);
-                const uniqueDates = new Set(filtered.map(d => d.date));
-                const blockDaysCount = uniqueDates.size;
-                const blockAvgIncome = allDatesCount > 0 ? blockIncome / allDatesCount : 0;
-                const blockAvgExpense = allDatesCount > 0 ? blockExpense / allDatesCount : 0;
+                // Статистика за период (если активен)
+                const filteredPeriod = periodActive ? daysForPeriod.filter(d =>
+                    d.categories && d.categories.some(cat => block.categories.includes(cat))
+                ) : [];
 
-                html += `
-                <h6 class="mt-3">📦 ${block.name} <small class="text-muted">(Встречено в ${blockDaysCount} из ${allDatesCount} дней)</small></h6>
-                <div class="row g-3 mb-3">
-                    <div class="col-md-6"><div class="card stat-card bg-success text-white"><div class="card-body"><h6>Доход</h6><p class="fs-5 fw-bold">${blockIncome.toFixed(2)} ₽</p></div></div></div>
-                    <div class="col-md-6"><div class="card stat-card bg-danger text-white"><div class="card-body"><h6>Расход</h6><p class="fs-5 fw-bold">${blockExpense.toFixed(2)} ₽</p></div></div></div>
-                </div>
-                <div class="row g-3 mb-3">
-                    <div class="col-md-6"><div class="card stat-card bg-info text-dark"><div class="card-body"><h6>Средний доход / день</h6><p class="fs-5 fw-bold">${blockAvgIncome.toFixed(2)} ₽</p></div></div></div>
-                    <div class="col-md-6"><div class="card stat-card bg-info text-dark"><div class="card-body"><h6>Средний расход / день</h6><p class="fs-5 fw-bold">${blockAvgExpense.toFixed(2)} ₽</p></div></div></div>
-                </div>`;
+                // Если нет записей ни там, ни там — пропускаем блок
+                if (filteredAll.length === 0 && filteredPeriod.length === 0) return;
+
+                const blockDiv = document.createElement('div');
+                blockDiv.className = 'block-dual';
+
+                // Заголовок блока
+                const titleHtml = `<h5 class="mb-3">📦 ${block.name}</h5>`;
+
+                // Функция для генерации карточек по подмножеству дней
+                const cards = (subset, label) => {
+                    if (subset.length === 0) {
+                        return `<div class="text-muted">Нет данных ${label}</div>`;
+                    }
+                    const totalInc = subset.reduce((s, d) => s + (Number(d.income) || 0), 0);
+                    const totalExp = subset.reduce((s, d) => s + (Number(d.expense) || 0), 0);
+                    const datesSet = new Set(subset.map(d => d.date));
+                    const daysCnt = datesSet.size;
+                    const avgInc = daysCnt > 0 ? totalInc / daysCnt : 0;
+                    const avgExp = daysCnt > 0 ? totalExp / daysCnt : 0;
+                    const net = totalInc - totalExp;
+
+                    return `
+                        <div class="row g-2">
+                            <div class="col-6"><div class="card stat-card bg-success text-white"><div class="card-body p-2"><h6>Доход</h6><p class="fw-bold mb-0">${totalInc.toFixed(2)} ₽</p></div></div></div>
+                            <div class="col-6"><div class="card stat-card bg-danger text-white"><div class="card-body p-2"><h6>Расход</h6><p class="fw-bold mb-0">${totalExp.toFixed(2)} ₽</p></div></div></div>
+                            <div class="col-6"><div class="card stat-card bg-info text-dark"><div class="card-body p-2"><h6>Ср.доход/день</h6><p class="fw-bold mb-0">${avgInc.toFixed(2)} ₽</p></div></div></div>
+                            <div class="col-6"><div class="card stat-card bg-info text-dark"><div class="card-body p-2"><h6>Ср.расход/день</h6><p class="fw-bold mb-0">${avgExp.toFixed(2)} ₽</p></div></div></div>
+                            <div class="col-6"><div class="card stat-card ${net >= 0 ? 'bg-primary' : 'bg-warning'} text-white"><div class="card-body p-2"><h6>Остаток</h6><p class="fw-bold mb-0">${net.toFixed(2)} ₽</p></div></div></div>
+                            <div class="col-6"><div class="card stat-card bg-secondary text-white"><div class="card-body p-2"><h6>Дней</h6><p class="fw-bold mb-0">${daysCnt}</p></div></div></div>
+                        </div>`;
+                };
+
+                if (!periodActive) {
+                    // Только за всё время
+                    blockDiv.innerHTML = titleHtml + cards(filteredAll, 'за всё время');
+                } else {
+                    // Две колонки: за всё время и за период
+                    blockDiv.innerHTML = `
+                        ${titleHtml}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>За всё время</h6>
+                                ${cards(filteredAll, 'за всё время')}
+                            </div>
+                            <div class="col-md-6 col-period">
+                                <h6>За период</h6>
+                                ${cards(filteredPeriod, 'за период')}
+                            </div>
+                        </div>`;
+                }
+                container.appendChild(blockDiv);
             });
-            return html || '<div class="text-muted">Блоки не найдены</div>';
         }
 
         function toggleBlocksStats() {
@@ -907,7 +930,7 @@
                 const editBtn = e.target.closest('.edit-block-btn');
                 const deleteBtn = e.target.closest('.delete-block-btn');
                 if (editBtn) editBlock(editBtn.getAttribute('data-id'));
-                if (deleteBtn) deleteBlock(deleteBtn.getAttribute('data-id'));
+                if (deleteBtn) deleteBlock(editBtn.getAttribute('data-id'));
             });
 
             document.getElementById('blocksToggleBtn').addEventListener('click', toggleBlocksStats);
@@ -956,7 +979,7 @@
             document.getElementById('blocksToggleIcon').textContent = '▼';
         }
 
-        // ====== ЛОГИКА ТРАТ (без изменений) ======
+        // ====== ЛОГИКА ТРАТ (без изменений, но убрана авто-галочка еды) ======
         async function saveDay() {
             const dateInput = document.getElementById('dayDate').value;
             if (!dateInput) { alert('Выберите дату!'); return; }
@@ -1026,11 +1049,7 @@
             document.getElementById('dayForm').reset();
             document.getElementById('dayDate').value = new Date().toISOString().split('T')[0];
             clearDayCategoryCheckboxes();
-            const defaultPreset = presets.find(p => p.name === DEFAULT_CATEGORY);
-            if (defaultPreset) {
-                const cb = document.getElementById(`dayCat_${defaultPreset.id}`);
-                if (cb) cb.checked = true;
-            }
+            // Убрана автоматическая установка галочки для категории "Еда и прочее"
             document.getElementById('dayModalTitle').textContent = 'Добавить траты';
             checkDateType(-1);
         }
